@@ -102,3 +102,20 @@ index 5ba08c9..ac9a564 100644
      const char* basePath = SDL_GetBasePath();
      if (basePath != nullptr)
      {
+diff --git a/src/source/UI/NewUI/Inventory/NewUITrade.cpp b/src/source/UI/NewUI/Inventory/NewUITrade.cpp
+index b34977b..7b0618f 100644
+--- a/src/source/UI/NewUI/Inventory/NewUITrade.cpp
++++ b/src/source/UI/NewUI/Inventory/NewUITrade.cpp
+@@ -430,7 +430,11 @@ void CNewUITrade::ProcessMyInvenCtrl()
+     if (NULL == m_pMyInvenCtrl)
+         return;
+ 
+-    if (SEASON3B::IsPress(VK_LBUTTON))
++    // The inventory window sits on a higher layer and consumes the left-button press
++    // while an item is picked and the trade window is open, so the press never reaches
++    // this window. Accept the release as well, like the vault and the personal store do;
++    // SendRequestEquipmentItem() ignores a second request while one is pending.
++    if (SEASON3B::IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON))
+     {
+         CNewUIPickedItem* pPickedItem = CNewUIInventoryCtrl::GetPickedItem();
+         if (NULL == pPickedItem)
