@@ -1,12 +1,20 @@
 # mu-cliente-mac
 
-Receta para compilar el cliente [MuMain](https://github.com/sven-n/MuMain) (versión 1.2.5, la publicada en el fork [yesid-bocanegra/MuMain](https://github.com/yesid-bocanegra/MuMain/releases/tag/v1.2.5)) para macOS Apple Silicon usando los Mac de GitHub Actions, con cuatro arreglos pequeños aplicados antes de compilar (`cliente-mac-parches.patch`):
+Receta para compilar el cliente [MuMain](https://github.com/sven-n/MuMain) (versión 1.2.5, la publicada en el fork [yesid-bocanegra/MuMain](https://github.com/yesid-bocanegra/MuMain/releases/tag/v1.2.5)) para macOS Apple Silicon y para Windows x64 usando las máquinas de GitHub Actions, con cinco arreglos pequeños aplicados antes de compilar (`cliente-mac-parches.patch`):
 
-1. Shaders: se buscan junto al ejecutable (`Contents/MacOS/shaders`), que es donde el paquete de Mac los trae. Sin esto el cliente abre con «SDL_gpu Renderer Error».
+1. Shaders: se buscan junto al ejecutable (`Contents/MacOS/shaders`), que es donde el paquete de Mac los trae. Sin esto el cliente de Mac abre con «SDL_gpu Renderer Error».
 2. Música: una pista que no se puede abrir no se reintenta en cada cuadro. Sin esto, con la carpeta `Data/Music` ausente, el cliente se puede quedar pegado al cambiar de aplicación (bloqueo en miniaudio).
 3. MU Helper: los nombres de ítems de 15 o más caracteres se recortan a 14 al guardar, en vez de perderse en silencio.
 4. Intercambio: la caja de intercambio acepta el ítem también al soltar el botón del mouse (como la bóveda). Sin esto no se podía poner ningún ítem en el intercambio, porque la ventana del inventario consume el clic de «apretar» mientras hay un ítem tomado.
+5. Máquina del caos: lo mismo que el punto 4 para la caja de la máquina del caos (arrastrar un ítem a la caja; el clic derecho ya funcionaba).
 
-El workflow (`.github/workflows/build-macos.yml`) usa los mismos pasos que el CI del proyecto (`build-macos` en `ci.yml`) y publica un Release con `MuMain-macos-native-arm64-release-editor-off-no-data-parchado.tar.gz` y su sha256. El paquete no incluye la data del juego (`Data`, `fonts`), igual que el oficial.
+El workflow (`.github/workflows/build-clientes.yml`) se lanza a mano desde la pestaña Actions (Run workflow). Usa los mismos pasos que el CI del proyecto (`build-macos` y `build-windows` en `ci.yml`) y publica un Release con:
+
+- `MuMain-macos-native-arm64-release-editor-off-no-data-parchado.tar.gz`: runtime de Mac, para `actualizar-cliente-mac.sh`.
+- `Mu-cliente-windows-parche5.zip`: para los jugadores de Windows; `Main.exe`, las DLL y los shaders. No trae `Data`, `fonts` ni `config.ini`, así que se descomprime encima de la carpeta del juego y cada uno conserva su configuración.
+- `MuMain-windows-native-x64-release-editor-off-no-data-parchado.tar.gz`: runtime completo de Windows con el `config.ini` de plantilla, por si hay que armar un cliente de cero.
+- `sha256.txt` con las sumas de todo.
+
+Ninguno de los paquetes incluye la data del juego (`Data`, `fonts`), igual que los oficiales.
 
 Uso personal, sin garantía. Solo cambia el cliente; no toca nada del protocolo ni del servidor.
