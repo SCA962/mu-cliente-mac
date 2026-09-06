@@ -1,0 +1,330 @@
+name: Compilar clientes Mac y Windows (MuMain v1.2.5 + parches)
+
+# Compila el cliente MuMain v1.2.5 con los cinco parches de cliente-mac-parches.patch,
+# en un Mac de GitHub Actions (arm64) y en un Windows de GitHub Actions (x64, MSVC),
+# con los mismos pasos que usa el proyecto en su CI (jobs build-macos y build-windows de ci.yml).
+# Resultado: un Release con
+#   - el .tar.gz del runtime de Mac (sin data), para actualizar-cliente-mac.sh
+#   - el .zip para los jugadores de Windows (Main.exe, DLL y shaders; sin Data, fonts ni config.ini)
+#   - el .tar.gz del runtime completo de Windows (con config.ini de plantilla), por si hay que armar un cliente de cero
+#   - sha256 de todo
+# Se lanza a mano desde la pestana Actions (Run workflow), no en cada push.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: macOS arm64 Release (editor OFF) con parches
+    runs-on: macos-latest
+
+    steps:
+      - name: Receta y parche (este repositorio)
+        uses: actions/checkout@v4
+        with:
+          path: receta
+
+      - name: Codigo de MuMain v1.2.5 (con submodulos)
+        uses: actions/checkout@v4
+        with:
+          repository: yesid-bocanegra/MuMain
+          ref: v1.2.5
+          submodules: recursive
+          path: MuMain
+
+      - name: Aplicar parche
+        working-directory: MuMain
+        run: |
+          echo "commit base: $(git rev-parse HEAD)"
+          git apply --check ../receta/cliente-mac-parches.patch
+          git apply ../receta/cliente-mac-parches.patch
+          git diff --stat
+          test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
+          test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"
+
+      - name: .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Herramientas (Homebrew)
+        run: brew install cmake ninja openssl@3 curl brotli glslang spirv-cross jpeg-turbo
+
+      - name: Configurar
+        working-directory: MuMain
+        run: >
+          cmake --preset macos-arm64
+          -B out/build/macos-ci
+          -DENABLE_EDITOR=OFF
+          -DMU_COPY_RUNTIME_ASSETS=OFF
+          -DBUILD_TESTING=ON
+          -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3)
+
+      - name: Compilar
+        working-directory: MuMain
+        run: cmake --build out/build/macos-ci --config Release
+
+      - name: Tests
+        working-directory: MuMain
+        run: >
+          ctest --test-dir out/build/macos-ci --build-config Release
+          --output-on-failure
+          --no-tests=error
+
+      - name: Validar runtime y parches
+        working-directory: MuMain
+        run: |
+          rt="out/build/macos-ci/src/Release/Main.app/Contents/MacOS"
+          for p in "$rt/Main" "$rt/MUnique.Client.Library.dylib" "$rt/config.ini" "$rt/shaders"; do
+            if [ ! -e "$p" ]; then echo "falta: $p" >&2; exit 1; fi
+          done
+          for p in "$rt/Data" "$rt/fonts"; do
+            if [ -e "$p" ]; then echo "data inesperada en el runtime: $p" >&2; exit 1; fi
+          done
+          file "$rt/Main"
+          echo "--- librerias que carga Main:"
+          otool -L "$rt/Main"
+          echo "--- shaders:"
+          ls "$rt/shaders"
+          if LC_ALL=C grep -a -q "not retrying until another track is requested" "$rt/Main"; then
+            echo "parche de musica presente en el binario"
+          else
+            echo "el parche de musica NO esta en el binario" >&2; exit 1
+          fi
+          if grep -q "ServerIP=localhost" "$rt/config.ini"; then
+            echo "config.ini es la plantilla (localhost)"
+          else
+            echo "config.ini inesperado" >&2; exit 1
+          fi
+
+      - name: Empaquetar
+        run: |
+          NOMBRE="MuMain-macos-native-arm64-release-editor-off-no-data-parchado.tar.gz"
+          tar -czf "$NOMBRE" -C MuMain/out/build/macos-ci/src/Release Main.app
+          shasum -a 256 "$NOMBRE"
+          ls -l "$NOMBRE"
+
+      - name: Guardar artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: cliente-mac-parchado
+          path: MuMain-macos-native-arm64-release-editor-off-no-data-parchado.tar.gz
+          if-no-files-found: error
+
+  build-windows:
+    name: Windows x64 Release (editor OFF) con parches
+    runs-on: windows-latest
+
+    steps:
+      - name: Receta y parche (este repositorio)
+        uses: actions/checkout@v4
+        with:
+          path: receta
+
+      - name: Codigo de MuMain v1.2.5 (con submodulos)
+        uses: actions/checkout@v4
+        with:
+          repository: yesid-bocanegra/MuMain
+          ref: v1.2.5
+          submodules: recursive
+          path: MuMain
+
+      - name: Aplicar parche
+        shell: bash
+        working-directory: MuMain
+        run: |
+          echo "commit base: $(git rev-parse HEAD)"
+          git apply --check ../receta/cliente-mac-parches.patch
+          git apply ../receta/cliente-mac-parches.patch
+          git diff --stat
+          test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
+          test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"
+
+      - name: .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Entorno de Visual Studio (MSVC x64)
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+
+      - name: Cache de FetchContent y NuGet
+        uses: actions/cache@v4
+        with:
+          path: |
+            MuMain/out/build/windows-ci-x64-release/_deps
+            MuMain/.nuget
+          key: windows-x64-release-deps-${{ hashFiles('MuMain/CMakeLists.txt', 'MuMain/src/CMakeLists.txt', 'MuMain/ClientLibrary/**/*.csproj', 'MuMain/ClientLibrary/**/*.props') }}
+          restore-keys: windows-x64-release-deps-
+
+      - name: Cache de vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:/vcpkg/installed
+            C:/vcpkg/packages
+          key: vcpkg-windows-x64-${{ hashFiles('MuMain/vcpkg.json') }}
+          restore-keys: vcpkg-windows-x64-
+
+      - name: Configurar
+        working-directory: MuMain
+        run: >
+          cmake --preset windows-x64
+          -B out/build/windows-ci-x64-release
+          -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+          -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${{ github.workspace }}/MuMain/toolchain-x64.cmake
+          -DVCPKG_TARGET_TRIPLET=x64-windows
+          -DVCPKG_INSTALLED_DIR=C:/vcpkg/installed
+          -DVCPKG_MANIFEST_MODE=ON
+          -DENABLE_EDITOR=OFF
+          -DMU_ENABLE_SHADER_COMPILATION=ON
+          -DGLSLANG_EXE=C:/vcpkg/installed/x64-windows/tools/glslang/glslangValidator.exe
+          -DSPIRV_CROSS_EXE=C:/vcpkg/installed/x64-windows/tools/spirv-cross/spirv-cross.exe
+          -DDXC_EXE=C:/vcpkg/installed/x64-windows/tools/directx-dxc/dxc.exe
+          -DMU_COPY_RUNTIME_ASSETS=OFF
+          -DBUILD_TESTING=ON
+
+      - name: Compilar
+        working-directory: MuMain
+        run: cmake --build out/build/windows-ci-x64-release --config Release
+
+      - name: Tests
+        working-directory: MuMain
+        run: >
+          ctest --test-dir out/build/windows-ci-x64-release --build-config Release
+          --output-on-failure
+          --no-tests=error
+
+      - name: Copiar el runtime de MSVC junto al ejecutable
+        shell: pwsh
+        working-directory: MuMain
+        run: |
+          $runtimeDirectory = "out/build/windows-ci-x64-release/src/Release"
+          if (-not (Test-Path -LiteralPath $runtimeDirectory -PathType Container)) {
+            throw "Falta la carpeta del runtime: $runtimeDirectory"
+          }
+          if ([string]::IsNullOrWhiteSpace($env:VCToolsRedistDir)) {
+            throw "VCToolsRedistDir no esta en el entorno de MSVC."
+          }
+          $crtDirectories = @(Get-ChildItem -LiteralPath (Join-Path $env:VCToolsRedistDir "x64") -Directory -Filter "Microsoft.VC*.CRT")
+          if ($crtDirectories.Count -ne 1) {
+            throw "Se esperaba una carpeta Microsoft.VC*.CRT; hay $($crtDirectories.Count)."
+          }
+          $crtDlls = @(Get-ChildItem -LiteralPath $crtDirectories[0].FullName -File -Filter "*.dll" | Sort-Object Name)
+          if ($crtDlls.Count -eq 0) { throw "La carpeta del CRT no tiene DLL." }
+          Copy-Item -LiteralPath $crtDlls.FullName -Destination $runtimeDirectory -Force
+          Write-Host "CRT copiado: $($crtDlls.Name -join ', ')"
+
+      - name: Validar runtime y parches
+        shell: pwsh
+        working-directory: MuMain
+        run: |
+          $runtimeDirectory = "out/build/windows-ci-x64-release/src/Release"
+          foreach ($path in @("$runtimeDirectory/Main.exe", "$runtimeDirectory/MUnique.Client.Library.dll", "$runtimeDirectory/config.ini")) {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Falta: $path" }
+          }
+          if (-not (Test-Path -LiteralPath "$runtimeDirectory/shaders" -PathType Container)) { throw "Falta la carpeta shaders" }
+          foreach ($path in @("$runtimeDirectory/Data", "$runtimeDirectory/fonts")) {
+            if (Test-Path -LiteralPath $path) { throw "Data inesperada en el runtime: $path" }
+          }
+          $shaders = @(Get-ChildItem -LiteralPath "$runtimeDirectory/shaders" -File -Recurse)
+          if ($shaders.Count -ne 18) { throw "Se esperaban 18 shaders; hay $($shaders.Count)." }
+
+          $dumpbin = (Get-Command dumpbin.exe -ErrorAction Stop).Source
+          $binaries = @(Get-ChildItem -LiteralPath $runtimeDirectory -File -Recurse | Where-Object { $_.Extension -in @(".exe", ".dll") } | Sort-Object FullName)
+          foreach ($binary in $binaries) {
+            $headers = @(& $dumpbin /headers $binary.FullName 2>&1)
+            if ($LASTEXITCODE -ne 0) { throw "dumpbin fallo con $($binary.Name)" }
+            $machine = @($headers | Select-String -Pattern '^\s*8664 machine \(x64\)\s*$')
+            if ($machine.Count -ne 1) { throw "$($binary.Name) no es x64" }
+            $dependents = (& $dumpbin /DEPENDENTS $binary.FullName 2>&1) -join "`n"
+            if ($dependents -match '(?im)^\s*(?:ucrtbased|(?:vcruntime|msvcp|concrt|vcomp)[0-9]+(?:_[a-z0-9_]+)?d)\.dll\s*$') {
+              throw "$($binary.Name) importa un CRT de debug"
+            }
+          }
+          Write-Host "Binarios x64 validados: $($binaries.Count)"
+
+          $exeText = [System.IO.File]::ReadAllText("$runtimeDirectory/Main.exe", [System.Text.Encoding]::Latin1)
+          if ($exeText.Contains("not retrying until another track is requested")) {
+            Write-Host "parche de musica presente en Main.exe"
+          } else {
+            throw "el parche de musica NO esta en Main.exe"
+          }
+          if ((Get-Content -LiteralPath "$runtimeDirectory/config.ini" -Raw) -match "ServerIP=localhost") {
+            Write-Host "config.ini es la plantilla (localhost)"
+          } else {
+            throw "config.ini inesperado"
+          }
+          Write-Host "--- contenido del runtime:"
+          Get-ChildItem -LiteralPath $runtimeDirectory -Recurse | ForEach-Object { $_.FullName.Substring((Resolve-Path $runtimeDirectory).Path.Length + 1) + "  " + $_.Length }
+
+      - name: Empaquetar (zip para jugadores + tar.gz del runtime completo)
+        shell: pwsh
+        run: |
+          $runtimeDirectory = "MuMain/out/build/windows-ci-x64-release/src/Release"
+          $stage = "stage-jugadores"
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          # Para los jugadores: todo el runtime menos config.ini (cada uno conserva el suyo) y los .pdb
+          Get-ChildItem -LiteralPath $runtimeDirectory -Force | Where-Object { $_.Name -ne "config.ini" -and $_.Extension -ne ".pdb" } | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $stage -Recurse -Force
+          }
+          $zip = "Mu-cliente-windows-parche5.zip"
+          Push-Location $stage
+          & 7z a -tzip -mx=9 "..\$zip" * | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "7z fallo" }
+          Pop-Location
+          Write-Host "--- contenido del zip:"
+          & 7z l $zip
+          $tgz = "MuMain-windows-native-x64-release-editor-off-no-data-parchado.tar.gz"
+          tar -czf $tgz -C $runtimeDirectory .
+          Get-FileHash -Algorithm SHA256 $zip, $tgz | Format-Table -AutoSize
+          Get-Item $zip, $tgz | Format-Table Name, Length -AutoSize
+
+      - name: Guardar artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: cliente-windows-parchado
+          path: |
+            Mu-cliente-windows-parche5.zip
+            MuMain-windows-native-x64-release-editor-off-no-data-parchado.tar.gz
+          if-no-files-found: error
+
+  publicar:
+    name: Publicar release con los dos clientes
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Bajar artefactos
+        uses: actions/download-artifact@v4
+        with:
+          path: artefactos
+          merge-multiple: true
+
+      - name: Publicar release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd artefactos
+          ls -l
+          sha256sum *.zip *.tar.gz | tee sha256.txt
+          TAG="v1.2.5-parche5-r${{ github.run_number }}"
+          {
+            echo "MuMain v1.2.5 (fork yesid-bocanegra, tag v1.2.5) compilado con los cinco parches de cliente-mac-parches.patch"
+            echo "(shaders, musica, MU Helper, intercambio, maquina del caos). Editor OFF, sin data."
+            echo
+            echo "- Mac (arm64): MuMain-macos-native-arm64-release-editor-off-no-data-parchado.tar.gz, para actualizar-cliente-mac.sh"
+            echo "- Windows (x64), jugadores: Mu-cliente-windows-parche5.zip (Main.exe, DLL y shaders; sin Data, fonts ni config.ini: se descomprime encima de la carpeta del juego)"
+            echo "- Windows (x64), runtime completo con config.ini de plantilla: MuMain-windows-native-x64-release-editor-off-no-data-parchado.tar.gz"
+            echo
+            echo "sha256:"
+            echo '```'
+            cat sha256.txt
+            echo '```'
+          } > notas.md
+          gh release create "$TAG" --repo "${{ github.repository }}" --title "Clientes Mac y Windows parchados ($TAG)" --notes-file notas.md *.zip *.tar.gz sha256.txt
