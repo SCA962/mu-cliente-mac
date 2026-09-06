@@ -39,6 +39,7 @@ jobs:
           git apply --check ../receta/cliente-mac-parches.patch
           git apply ../receta/cliente-mac-parches.patch
           git diff --stat
+          grep -q "IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)" src/source/UI/NewUI/Inventory/NewUITrade.cpp && echo "parche 4 (intercambio) aplicado en el codigo"
 
       - name: .NET 10
         uses: actions/setup-dotnet@v4
@@ -116,10 +117,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="v1.2.5-mac-parche1-r${{ github.run_number }}"
+          TAG="v1.2.5-mac-parche4-r${{ github.run_number }}"
           {
             echo "MuMain v1.2.5 (commit base $(git -C MuMain rev-parse HEAD)) compilado para macOS arm64,"
-            echo "editor OFF, sin data, con los tres parches de cliente-mac-parches.patch aplicados."
+            echo "editor OFF, sin data, con los cuatro parches de cliente-mac-parches.patch aplicados (shaders, musica, MU Helper, intercambio)."
             echo
             echo "sha256 del .tar.gz:"
             echo '```'
