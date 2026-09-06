@@ -1,0 +1,121 @@
+diff --git a/src/source/Core/Platform/Audio/MiniAudioBackend.cpp b/src/source/Core/Platform/Audio/MiniAudioBackend.cpp
+index 94856cb..2c2b561 100644
+--- a/src/source/Core/Platform/Audio/MiniAudioBackend.cpp
++++ b/src/source/Core/Platform/Audio/MiniAudioBackend.cpp
+@@ -534,6 +534,16 @@ void MiniAudioBackend::PlayMusic(const char* name, bool enforce)
+         return;
+     }
+ 
++    // If the same track already failed to open (e.g. Data/Music is missing), do not
++    // retry it on every frame: each attempt posts a job to miniaudio's resource
++    // manager thread and waits for it, and that hammering can end in a livelock that
++    // freezes the main thread (seen on macOS). A different track, or enforce=true,
++    // retries as usual.
++    if (!enforce && !m_failedMusicName.empty() && m_failedMusicName == normalizedName)
++    {
++        return;
++    }
++
+     // Stop and release previous music stream
+     if (m_musicLoaded)
+     {
+@@ -557,11 +567,14 @@ void MiniAudioBackend::PlayMusic(const char* name, bool enforce)
+ 
+     if (result != MA_SUCCESS)
+     {
+-        mu::log::Get("audio")->error("AUDIO: MiniAudioBackend::PlayMusic -- failed to init stream '{}' ({})", name,
++        mu::log::Get("audio")->error("AUDIO: MiniAudioBackend::PlayMusic -- failed to init stream '{}' ({}); not retrying until another track is requested", name,
+                                      static_cast<int>(result));
++        m_failedMusicName = normalizedName;
+         return;
+     }
+ 
++    m_failedMusicName.clear();
++
+     ma_sound_set_looping(&m_musicSound, MA_TRUE);
+     // Story 5.4.1: Apply stored BGM volume to new track before starting
+     ma_sound_set_volume(&m_musicSound, m_bgmVolume);
+diff --git a/src/source/Core/Platform/Audio/MiniAudioBackend.h b/src/source/Core/Platform/Audio/MiniAudioBackend.h
+index 8d6461f..c7fd678 100644
+--- a/src/source/Core/Platform/Audio/MiniAudioBackend.h
++++ b/src/source/Core/Platform/Audio/MiniAudioBackend.h
+@@ -97,6 +97,7 @@ private:
+     ma_sound m_musicSound{};
+     bool m_musicLoaded = false;
+     std::string m_currentMusicName;
++    std::string m_failedMusicName; // last track that failed to open; not retried every frame
+     bool m_initialized = false;
+ };
+ 
+diff --git a/src/source/MUHelper/MuHelperData.cpp b/src/source/MUHelper/MuHelperData.cpp
+index 164a5f4..910f41b 100644
+--- a/src/source/MUHelper/MuHelperData.cpp
++++ b/src/source/MUHelper/MuHelperData.cpp
+@@ -131,11 +131,19 @@ namespace MUHelper
+ 				break;
+ 			}
+ 
++			// The wire format has 15 bytes per name. wcstombs() returns 15 when the
++			// name does not fit; previously the whole entry was dropped silently, so
++			// filters of 15+ characters vanished when saving. Keep the first 14
++			// characters instead (the pickup filter is a substring match anyway).
+ 			size_t n = wcstombs(netData.ExtraItems[iItemIndex], wsItem.c_str(), 15);
+-			if (n == (size_t)-1 || n == 15)
++			if (n == (size_t)-1)
+ 			{
+ 				memset(netData.ExtraItems[iItemIndex], 0, 15);
+ 			}
++			else
++			{
++				netData.ExtraItems[iItemIndex][14] = '\0';
++			}
+ 			iItemIndex++;
+ 		}
+ 
+diff --git a/src/source/Render/Renderer/MuRendererSDLGpu.cpp b/src/source/Render/Renderer/MuRendererSDLGpu.cpp
+index 5ba08c9..ac9a564 100644
+--- a/src/source/Render/Renderer/MuRendererSDLGpu.cpp
++++ b/src/source/Render/Renderer/MuRendererSDLGpu.cpp
+@@ -168,13 +168,24 @@ static_assert(sizeof(FogUniform) == 48, "FogUniform must be 48 bytes (HLSL cbuff
+ #define MU_SHADER_DIR ""
+ #endif
+     // Primary: cmake build-output path (works for local dev builds).
+-    // Fallback: shaders/ next to the executable (works for CI artifacts and installs).
++    // Then: shaders/ in the runtime directory, which is the working directory set at
++    // startup (the executable's directory on every platform; on macOS that is
++    // Main.app/Contents/MacOS, where the CI archive puts the shaders).
++    // Fallback: shaders/ under SDL_GetBasePath(). Note that inside a macOS app bundle
++    // SDL_GetBasePath() returns Contents/Resources/, not the executable directory, so
++    // it must not be the only candidate (issue: "SDL_gpu Renderer Error" on macOS).
+     std::string filename = std::string(name) + "." + stage + "." + ext;
+     std::filesystem::path cmakePath = std::filesystem::path(MU_SHADER_DIR) / filename;
+     if (!cmakePath.empty() && std::filesystem::exists(cmakePath))
+     {
+         return cmakePath.string();
+     }
++    std::error_code error;
++    const std::filesystem::path runtimePath = std::filesystem::current_path(error) / "shaders" / filename;
++    if (!error && std::filesystem::exists(runtimePath))
++    {
++        return runtimePath.string();
++    }
+     const char* basePath = SDL_GetBasePath();
+     if (basePath != nullptr)
+     {
+diff --git a/src/source/UI/NewUI/Inventory/NewUITrade.cpp b/src/source/UI/NewUI/Inventory/NewUITrade.cpp
+index b34977b..7b0618f 100644
+--- a/src/source/UI/NewUI/Inventory/NewUITrade.cpp
++++ b/src/source/UI/NewUI/Inventory/NewUITrade.cpp
+@@ -430,7 +430,11 @@ void CNewUITrade::ProcessMyInvenCtrl()
+     if (NULL == m_pMyInvenCtrl)
+         return;
+ 
+-    if (SEASON3B::IsPress(VK_LBUTTON))
++    // The inventory window sits on a higher layer and consumes the left-button press
++    // while an item is picked and the trade window is open, so the press never reaches
++    // this window. Accept the release as well, like the vault and the personal store do;
++    // SendRequestEquipmentItem() ignores a second request while one is pending.
++    if (SEASON3B::IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON))
+     {
+         CNewUIPickedItem* pPickedItem = CNewUIInventoryCtrl::GetPickedItem();
+         if (NULL == pPickedItem)
