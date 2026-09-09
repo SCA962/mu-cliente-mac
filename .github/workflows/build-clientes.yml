@@ -344,7 +344,7 @@ jobs:
           TAG="v1.2.5-parche7-r${{ github.run_number }}"
           {
             echo "MuMain v1.2.5 (fork yesid-bocanegra, tag v1.2.5) compilado con los siete parches de cliente-mac-parches.patch"
-            echo "(shaders, musica, MU Helper, intercambio, maquina del caos). Editor OFF, sin data."
+            echo "(shaders, musica, nombres largos en MU Helper, intercambio, maquina del caos, opcion 380 visible, textos del MU Helper en ingles). Editor OFF, sin data."
             echo
             echo "- Mac (arm64): MuMain-macos-native-arm64-release-editor-off-no-data-parchado.tar.gz, para actualizar-cliente-mac.sh"
             echo "- Windows (x64), jugadores: Mu-cliente-windows-parche7.zip (Main.exe, DLL y shaders; sin Data, fonts ni config.ini: se descomprime encima de la carpeta del juego)"
