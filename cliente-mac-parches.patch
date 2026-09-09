@@ -158,3 +158,93 @@ index 1a84d5a..a75729c 100644
              {
                  int iSourceIndex = pPickedItem->GetSourceLinealPos();
                  int iTargetIndex = pPickedItem->GetTargetLinealPos(m_pNewInventoryCtrl);
+diff --git a/src/source/UI/NewUI/Inventory/NewUIItemMng.cpp b/src/source/UI/NewUI/Inventory/NewUIItemMng.cpp
+--- a/src/source/UI/NewUI/Inventory/NewUIItemMng.cpp
++++ b/src/source/UI/NewUI/Inventory/NewUIItemMng.cpp
+@@ -24,6 +24,11 @@ ItemCreationParams ParseItemData(std::span<const BYTE> itemData)
+     params.Durability = itemData[3];
+     auto flags = static_cast<ItemOptionFlags>(itemData[4]);
+     params.WithLuck = flags & ItemOptionFlags::HasLuck;
+     params.WithSkill = flags & ItemOptionFlags::HasSkill;
++    // The level 380 (Guardian) option was parsed nowhere, so ItemCreationParams::HasGuardianOption
++    // stayed false, ITEM::option_380 stayed 0 and the tooltip block in ZzzInventory.cpp never ran.
++    // The flag carries no payload byte (see CalcItemLength and the server side layout), so reading
++    // it here does not shift any of the offsets below.
++    params.HasGuardianOption = (flags & ItemOptionFlags::HasGuardian) != 0;
+ 
+     int offset = 0;
+     if (flags & ItemOptionFlags::HasOption)
+diff --git a/src/Localization/Game.es.resx b/src/Localization/Game.es.resx
+index 0568ecd..3080b73 100644
+--- a/src/Localization/Game.es.resx
++++ b/src/Localization/Game.es.resx
+@@ -11862,11 +11862,11 @@
+     <comment>legacy_id=3501</comment>
+   </data>
+   <data name="Setting" xml:space="preserve">
+-    <value>Configuración</value>
++    <value>Setting</value>
+     <comment>legacy_id=3502</comment>
+   </data>
+   <data name="Save Setting" xml:space="preserve">
+-    <value>Guardar configuración</value>
++    <value>Save Setting</value>
+     <comment>legacy_id=3503</comment>
+   </data>
+   <data name="Initialization" xml:space="preserve">
+@@ -11890,11 +11890,11 @@
+     <comment>legacy_id=3509</comment>
+   </data>
+   <data name="Delay" xml:space="preserve">
+-    <value>Demora</value>
++    <value>Delay</value>
+     <comment>legacy_id=3510</comment>
+   </data>
+   <data name="Con" xml:space="preserve">
+-    <value>Estafa</value>
++    <value>Con</value>
+     <comment>legacy_id=3511</comment>
+   </data>
+   <data name="Buff Duration" xml:space="preserve">
+@@ -11946,7 +11946,7 @@
+     <comment>legacy_id=3526,3532</comment>
+   </data>
+   <data name="Distance" xml:space="preserve">
+-    <value>Distancia</value>
++    <value>Distance</value>
+     <comment>legacy_id=3527</comment>
+   </data>
+   <data name="Min" xml:space="preserve">
+@@ -11954,19 +11954,19 @@
+     <comment>legacy_id=3528</comment>
+   </data>
+   <data name="Basic Skill" xml:space="preserve">
+-    <value>Habilidad básica</value>
++    <value>Basic Skill</value>
+     <comment>legacy_id=3529</comment>
+   </data>
+   <data name="Activation Skill 1" xml:space="preserve">
+-    <value>Habilidad de activación 1</value>
++    <value>Activation Skill 1</value>
+     <comment>legacy_id=3530</comment>
+   </data>
+   <data name="Activation Skill 2" xml:space="preserve">
+-    <value>Habilidad de activación 2</value>
++    <value>Activation Skill 2</value>
+     <comment>legacy_id=3531</comment>
+   </data>
+   <data name="Cease Attack" xml:space="preserve">
+-    <value>Cese el ataque</value>
++    <value>Cease Attack</value>
+     <comment>legacy_id=3533</comment>
+   </data>
+   <data name="Auto Attack" xml:space="preserve">
+@@ -12182,7 +12182,7 @@
+     <comment>legacy_id=3589</comment>
+   </data>
+   <data name="Other Settings" xml:space="preserve">
+-    <value>Otras configuraciones</value>
++    <value>Other Settings</value>
+     <comment>legacy_id=3590</comment>
+   </data>
+   <data name="Auto accept - Friend" xml:space="preserve">
