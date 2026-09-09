@@ -1,6 +1,6 @@
 name: Compilar clientes Mac y Windows (MuMain v1.2.5 + parches)
 
-# Compila el cliente MuMain v1.2.5 con los cinco parches de cliente-mac-parches.patch,
+# Compila el cliente MuMain v1.2.5 con los siete parches de cliente-mac-parches.patch,
 # en un Mac de GitHub Actions (arm64) y en un Windows de GitHub Actions (x64, MSVC),
 # con los mismos pasos que usa el proyecto en su CI (jobs build-macos y build-windows de ci.yml).
 # Resultado: un Release con
@@ -44,6 +44,20 @@ jobs:
           git diff --stat
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"
+          # el parche de la opcion 380 no deja rastro en el binario (es una asignacion, no un texto),
+          # asi que se comprueba en el fuente ya parcheado
+          grep -q "params.HasGuardianOption = (flags & ItemOptionFlags::HasGuardian)" src/source/UI/NewUI/Inventory/NewUIItemMng.cpp \
+            && echo "parche 6 (opcion 380 visible) aplicado en el codigo" \
+            || { echo "el parche de la opcion 380 NO se aplico" >&2; exit 1; }
+          # los textos del MU Helper tampoco dejan rastro buscable en el binario
+          grep -q "<value>Basic Skill</value>" src/Localization/Game.es.resx \
+            && echo "parche 7 (textos del MU Helper) aplicado en el codigo" \
+            || { echo "el parche de los textos NO se aplico" >&2; exit 1; }
+          # y el resx tiene que seguir siendo XML valido, o la compilacion de .NET falla mas tarde
+          PY=python3; command -v $PY >/dev/null 2>&1 || PY=python
+          "$PY" -c "import xml.etree.ElementTree as ET; ET.parse('src/Localization/Game.es.resx')" \
+            && echo "Game.es.resx sigue siendo XML valido" \
+            || { echo "Game.es.resx quedo malformado" >&2; exit 1; }
 
       - name: .NET 10
         uses: actions/setup-dotnet@v4
@@ -142,6 +156,20 @@ jobs:
           git diff --stat
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"
+          # el parche de la opcion 380 no deja rastro en el binario (es una asignacion, no un texto),
+          # asi que se comprueba en el fuente ya parcheado
+          grep -q "params.HasGuardianOption = (flags & ItemOptionFlags::HasGuardian)" src/source/UI/NewUI/Inventory/NewUIItemMng.cpp \
+            && echo "parche 6 (opcion 380 visible) aplicado en el codigo" \
+            || { echo "el parche de la opcion 380 NO se aplico" >&2; exit 1; }
+          # los textos del MU Helper tampoco dejan rastro buscable en el binario
+          grep -q "<value>Basic Skill</value>" src/Localization/Game.es.resx \
+            && echo "parche 7 (textos del MU Helper) aplicado en el codigo" \
+            || { echo "el parche de los textos NO se aplico" >&2; exit 1; }
+          # y el resx tiene que seguir siendo XML valido, o la compilacion de .NET falla mas tarde
+          PY=python3; command -v $PY >/dev/null 2>&1 || PY=python
+          "$PY" -c "import xml.etree.ElementTree as ET; ET.parse('src/Localization/Game.es.resx')" \
+            && echo "Game.es.resx sigue siendo XML valido" \
+            || { echo "Game.es.resx quedo malformado" >&2; exit 1; }
 
       - name: .NET 10
         uses: actions/setup-dotnet@v4
@@ -273,7 +301,7 @@ jobs:
           Get-ChildItem -LiteralPath $runtimeDirectory -Force | Where-Object { $_.Name -ne "config.ini" -and $_.Extension -ne ".pdb" } | ForEach-Object {
             Copy-Item -LiteralPath $_.FullName -Destination $stage -Recurse -Force
           }
-          $zip = "Mu-cliente-windows-parche5.zip"
+          $zip = "Mu-cliente-windows-parche7.zip"
           Push-Location $stage
           & 7z a -tzip -mx=9 "..\$zip" * | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "7z fallo" }
@@ -290,7 +318,7 @@ jobs:
         with:
           name: cliente-windows-parchado
           path: |
-            Mu-cliente-windows-parche5.zip
+            Mu-cliente-windows-parche7.zip
             MuMain-windows-native-x64-release-editor-off-no-data-parchado.tar.gz
           if-no-files-found: error
 
@@ -313,13 +341,13 @@ jobs:
           cd artefactos
           ls -l
           sha256sum *.zip *.tar.gz | tee sha256.txt
-          TAG="v1.2.5-parche5-r${{ github.run_number }}"
+          TAG="v1.2.5-parche7-r${{ github.run_number }}"
           {
-            echo "MuMain v1.2.5 (fork yesid-bocanegra, tag v1.2.5) compilado con los cinco parches de cliente-mac-parches.patch"
+            echo "MuMain v1.2.5 (fork yesid-bocanegra, tag v1.2.5) compilado con los siete parches de cliente-mac-parches.patch"
             echo "(shaders, musica, MU Helper, intercambio, maquina del caos). Editor OFF, sin data."
             echo
             echo "- Mac (arm64): MuMain-macos-native-arm64-release-editor-off-no-data-parchado.tar.gz, para actualizar-cliente-mac.sh"
-            echo "- Windows (x64), jugadores: Mu-cliente-windows-parche5.zip (Main.exe, DLL y shaders; sin Data, fonts ni config.ini: se descomprime encima de la carpeta del juego)"
+            echo "- Windows (x64), jugadores: Mu-cliente-windows-parche7.zip (Main.exe, DLL y shaders; sin Data, fonts ni config.ini: se descomprime encima de la carpeta del juego)"
             echo "- Windows (x64), runtime completo con config.ini de plantilla: MuMain-windows-native-x64-release-editor-off-no-data-parchado.tar.gz"
             echo
             echo "sha256:"
