@@ -175,9 +175,36 @@ diff --git a/src/source/UI/NewUI/Inventory/NewUIItemMng.cpp b/src/source/UI/NewU
      int offset = 0;
      if (flags & ItemOptionFlags::HasOption)
 diff --git a/src/Localization/Game.es.resx b/src/Localization/Game.es.resx
-index 0568ecd..3080b73 100644
+index 0568ecd..d71f68a 100644
 --- a/src/Localization/Game.es.resx
 +++ b/src/Localization/Game.es.resx
+@@ -3670,7 +3670,7 @@
+     <comment>legacy_id=984</comment>
+   </data>
+   <data name="Set option" xml:space="preserve">
+-    <value>Establecer opción</value>
++    <value>Opción conjunto</value>
+     <comment>legacy_id=989</comment>
+   </data>
+   <data name="My Friend" xml:space="preserve">
+@@ -4062,7 +4062,7 @@
+     <comment>legacy_id=1088</comment>
+   </data>
+   <data name="Set" xml:space="preserve">
+-    <value>Colocar</value>
++    <value>Conjunto</value>
+     <comment>legacy_id=1089</comment>
+   </data>
+   <data name="Ancient Metal" xml:space="preserve">
+@@ -7966,7 +7966,7 @@
+     <comment>legacy_id=2218</comment>
+   </data>
+   <data name="Set item can't be reinforced." xml:space="preserve">
+-    <value>El elemento establecido no se puede reforzar.</value>
++    <value>Un ítem ancient no se puede reforzar.</value>
+     <comment>legacy_id=2219</comment>
+   </data>
+   <data name="Refine the item to create" xml:space="preserve">
 @@ -11862,11 +11862,11 @@
      <comment>legacy_id=3501</comment>
    </data>
@@ -206,6 +233,20 @@ index 0568ecd..3080b73 100644
      <comment>legacy_id=3511</comment>
    </data>
    <data name="Buff Duration" xml:space="preserve">
+@@ -11930,11 +11930,11 @@
+     <comment>legacy_id=3521</comment>
+   </data>
+   <data name="Set Item" xml:space="preserve">
+-    <value>Establecer elemento</value>
++    <value>Ancient</value>
+     <comment>legacy_id=3522</comment>
+   </data>
+   <data name="Excellent Item" xml:space="preserve">
+-    <value>Excelente artículo</value>
++    <value>Excelente</value>
+     <comment>legacy_id=3524</comment>
+   </data>
+   <data name="Add Extra Item" xml:space="preserve">
 @@ -11946,7 +11946,7 @@
      <comment>legacy_id=3526,3532</comment>
    </data>
@@ -239,6 +280,29 @@ index 0568ecd..3080b73 100644
      <comment>legacy_id=3533</comment>
    </data>
    <data name="Auto Attack" xml:space="preserve">
+@@ -12050,11 +12050,11 @@
+     <comment>legacy_id=3556</comment>
+   </data>
+   <data name="More Than 2 Mobs" xml:space="preserve">
+-    <value>Más de 2 turbas</value>
++    <value>Más de 2 mobs</value>
+     <comment>legacy_id=3557</comment>
+   </data>
+   <data name="More Than 3 Mobs" xml:space="preserve">
+-    <value>Más de 3 turbas</value>
++    <value>Más de 3 mobs</value>
+     <comment>legacy_id=3558</comment>
+   </data>
+   <data name="More than 4 mobs" xml:space="preserve">
+@@ -12062,7 +12062,7 @@
+     <comment>legacy_id=3559</comment>
+   </data>
+   <data name="More than 5 mobs" xml:space="preserve">
+-    <value>Más de 5 turbas</value>
++    <value>Más de 5 mobs</value>
+     <comment>legacy_id=3560</comment>
+   </data>
+   <data name="Official MU Helper Setting" xml:space="preserve">
 @@ -12182,7 +12182,7 @@
      <comment>legacy_id=3589</comment>
    </data>
@@ -248,3 +312,21 @@ index 0568ecd..3080b73 100644
      <comment>legacy_id=3590</comment>
    </data>
    <data name="Auto accept - Friend" xml:space="preserve">
+@@ -12530,7 +12530,7 @@
+     <comment>legacy_id=3694</comment>
+   </data>
+   <data name="Set item +7 or more, additional options +4 or more. %d" xml:space="preserve">
+-    <value>Establecer elemento +7 o más, opciones adicionales +4 o más. %d</value>
++    <value>Ancient +7 o más, opciones adicionales +4 o más. %d</value>
+     <comment>legacy_id=3695</comment>
+   </data>
+   <data name="Do you want to refine/combine items?" xml:space="preserve">
+@@ -12878,7 +12878,7 @@
+     <comment>legacy_id=3809</comment>
+   </data>
+   <data name="Level: %u | Resets: %u" xml:space="preserve">
+-    <value>Nivel: %u | Restablecimientos: %u</value>
++    <value>Nivel: %u | Resets: %u</value>
+     <comment>legacy_id=3810</comment>
+   </data>
+   <data name="Font" xml:space="preserve">
