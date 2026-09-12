@@ -1,6 +1,6 @@
 name: Compilar clientes Mac y Windows (MuMain v1.2.5 + parches)
 
-# Compila el cliente MuMain v1.2.5 con los ocho parches de cliente-mac-parches.patch,
+# Compila el cliente MuMain v1.2.5 con los diez parches de cliente-mac-parches.patch,
 # en un Mac de GitHub Actions (arm64) y en un Windows de GitHub Actions (x64, MSVC),
 # con los mismos pasos que usa el proyecto en su CI (jobs build-macos y build-windows de ci.yml).
 # Resultado: un Release con
@@ -65,6 +65,14 @@ jobs:
           test "$(grep -c "Establecer elemento\|<value>Colocar</value>\|Restablecimientos: %u\|turbas\|Establecer opción\|elemento establecido" src/Localization/Game.es.resx)" = "0" \
             && echo "parche 8: no queda ninguna de las traducciones malas" \
             || { echo "quedan traducciones malas en el resx" >&2; exit 1; }
+          # parche 9: la Phoenix Soul Star con skill perdia todas las opciones del tooltip (faltaba el caso del skill Phoenix Shot)
+          grep -q "case AT_SKILL_PHOENIX_SHOT:" src/source/Engine/Object/ZzzInventory.cpp \
+            && echo "parche 9 (tooltip de la Phoenix Soul Star) aplicado en el codigo" \
+            || { echo "el parche 9 NO se aplico" >&2; exit 1; }
+          # parche 10: la opcion de la semilla de Tierra esta en la ficha 36 de SocketItem_*.bmd, no en la 34
+          test "$(grep -c 'SocketSeedID = 36 + iLevel;' src/source/Network/Server/SocketSystem.cpp)" = "3" \
+            && echo "parche 10 (semilla de Tierra, ficha 36) aplicado en el codigo" \
+            || { echo "el parche 10 NO se aplico" >&2; exit 1; }
 
       - name: .NET 10
         uses: actions/setup-dotnet@v4
@@ -184,6 +192,14 @@ jobs:
           test "$(grep -c "Establecer elemento\|<value>Colocar</value>\|Restablecimientos: %u\|turbas\|Establecer opción\|elemento establecido" src/Localization/Game.es.resx)" = "0" \
             && echo "parche 8: no queda ninguna de las traducciones malas" \
             || { echo "quedan traducciones malas en el resx" >&2; exit 1; }
+          # parche 9: la Phoenix Soul Star con skill perdia todas las opciones del tooltip (faltaba el caso del skill Phoenix Shot)
+          grep -q "case AT_SKILL_PHOENIX_SHOT:" src/source/Engine/Object/ZzzInventory.cpp \
+            && echo "parche 9 (tooltip de la Phoenix Soul Star) aplicado en el codigo" \
+            || { echo "el parche 9 NO se aplico" >&2; exit 1; }
+          # parche 10: la opcion de la semilla de Tierra esta en la ficha 36 de SocketItem_*.bmd, no en la 34
+          test "$(grep -c 'SocketSeedID = 36 + iLevel;' src/source/Network/Server/SocketSystem.cpp)" = "3" \
+            && echo "parche 10 (semilla de Tierra, ficha 36) aplicado en el codigo" \
+            || { echo "el parche 10 NO se aplico" >&2; exit 1; }
 
       - name: .NET 10
         uses: actions/setup-dotnet@v4
@@ -315,7 +331,7 @@ jobs:
           Get-ChildItem -LiteralPath $runtimeDirectory -Force | Where-Object { $_.Name -ne "config.ini" -and $_.Extension -ne ".pdb" } | ForEach-Object {
             Copy-Item -LiteralPath $_.FullName -Destination $stage -Recurse -Force
           }
-          $zip = "Mu-cliente-windows-parche8.zip"
+          $zip = "Mu-cliente-windows-parche9.zip"
           Push-Location $stage
           & 7z a -tzip -mx=9 "..\$zip" * | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "7z fallo" }
@@ -332,7 +348,7 @@ jobs:
         with:
           name: cliente-windows-parchado
           path: |
-            Mu-cliente-windows-parche8.zip
+            Mu-cliente-windows-parche9.zip
             MuMain-windows-native-x64-release-editor-off-no-data-parchado.tar.gz
           if-no-files-found: error
 
@@ -355,13 +371,13 @@ jobs:
           cd artefactos
           ls -l
           sha256sum *.zip *.tar.gz | tee sha256.txt
-          TAG="v1.2.5-parche8-r${{ github.run_number }}"
+          TAG="v1.2.5-parche9-r${{ github.run_number }}"
           {
-            echo "MuMain v1.2.5 (fork yesid-bocanegra, tag v1.2.5) compilado con los ocho parches de cliente-mac-parches.patch"
-            echo "(shaders, musica, nombres largos en MU Helper, intercambio, maquina del caos, opcion 380 visible, textos del MU Helper en ingles, traducciones arregladas). Editor OFF, sin data."
+            echo "MuMain v1.2.5 (fork yesid-bocanegra, tag v1.2.5) compilado con los diez parches de cliente-mac-parches.patch"
+            echo "(shaders, musica, nombres largos en MU Helper, intercambio, maquina del caos, opcion 380 visible, textos del MU Helper en ingles, traducciones arregladas, tooltip de la Phoenix Soul Star, semilla de Tierra). Editor OFF, sin data."
             echo
             echo "- Mac (arm64): MuMain-macos-native-arm64-release-editor-off-no-data-parchado.tar.gz, para actualizar-cliente-mac.sh"
-            echo "- Windows (x64), jugadores: Mu-cliente-windows-parche8.zip (Main.exe, DLL y shaders; sin Data, fonts ni config.ini: se descomprime encima de la carpeta del juego)"
+            echo "- Windows (x64), jugadores: Mu-cliente-windows-parche9.zip (Main.exe, DLL y shaders; sin Data, fonts ni config.ini: se descomprime encima de la carpeta del juego)"
             echo "- Windows (x64), runtime completo con config.ini de plantilla: MuMain-windows-native-x64-release-editor-off-no-data-parchado.tar.gz"
             echo
             echo "sha256:"

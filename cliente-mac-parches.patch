@@ -330,3 +330,55 @@ index 0568ecd..d71f68a 100644
      <comment>legacy_id=3810</comment>
    </data>
    <data name="Font" xml:space="preserve">
+diff --git a/src/source/Engine/Object/ZzzInventory.cpp b/src/source/Engine/Object/ZzzInventory.cpp
+--- a/src/source/Engine/Object/ZzzInventory.cpp
++++ b/src/source/Engine/Object/ZzzInventory.cpp
+@@ -2044,6 +2044,12 @@
+     case AT_SKILL_BEAST_UPPERCUT_MASTERY:
+         gSkillManager.GetSkillInformation(Option, 1, NULL, &iMana, NULL);
+         mu_swprintf(Text, I18N::Game::BeastUppercutManaD, iMana);
++        break;
++    case AT_SKILL_PHOENIX_SHOT:
++        // Phoenix Soul Star: without this case the skill line stayed empty and RenderTipTextList
++        // stops at the first empty line, hiding every option of the item.
++        gSkillManager.GetSkillInformation(Option, 1, NULL, &iMana, NULL);
++        mu_swprintf(Text, I18N::Game::PhoenixShotManaD, iMana);
+         break;
+     }
+ }
+diff --git a/src/source/Network/Server/SocketSystem.cpp b/src/source/Network/Server/SocketSystem.cpp
+--- a/src/source/Network/Server/SocketSystem.cpp
++++ b/src/source/Network/Server/SocketSystem.cpp
+@@ -102,8 +102,8 @@
+         case 5:	// 29~33
+             bySocketSeedID = 29 + iLevel;
+             break;
+-        case 6:	// 34~40
+-            bySocketSeedID = 34 + iLevel;
++        case 6:	// 36~40 (SocketItem_*.bmd and the server put Earth at 36)
++            bySocketSeedID = 36 + iLevel;
+             break;
+         }
+     }
+@@ -307,8 +307,8 @@
+         case 5:	// 29~33
+             iSocketSeedID = 29 + iLevel;
+             break;
+-        case 6:	// 34~40
+-            iSocketSeedID = 34 + iLevel;
++        case 6:	// 36~40 (SocketItem_*.bmd and the server put Earth at 36)
++            iSocketSeedID = 36 + iLevel;
+             break;
+         }
+         pInfo = &m_SocketOptionInfo[SOT_SOCKET_ITEM_OPTIONS][iSocketSeedID];
+@@ -354,8 +354,8 @@
+         case 5:	// 29~33
+             iSocketSeedID = 29 + iLevel;
+             break;
+-        case 6:	// 34~40
+-            iSocketSeedID = 34 + iLevel;
++        case 6:	// 36~40 (SocketItem_*.bmd and the server put Earth at 36)
++            iSocketSeedID = 36 + iLevel;
+             break;
+         }
+ 
