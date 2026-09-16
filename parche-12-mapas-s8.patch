@@ -11,7 +11,7 @@ index cae014c..258b18f 100644
 +  </data>
  </root>
 diff --git a/src/source/Core/Globals/_enum.h b/src/source/Core/Globals/_enum.h
-index a314865..400d28c 100644
+index a314865..c569495 100644
 --- a/src/source/Core/Globals/_enum.h
 +++ b/src/source/Core/Globals/_enum.h
 @@ -215,6 +215,9 @@ constexpr const char* MUSIC_EMPIREGUARDIAN3 = "data\\music\\ImperialGuardianFort
@@ -31,12 +31,12 @@ index a314865..400d28c 100644
 -    AT_SKILL_MASTER_END = 608,
 +    AT_SKILL_IncreaseMaximumAttackPower = 609,
 +    AT_SKILL_IncreaseCriticalDamageRate = 610,
-+    AT_SKILL_IncreaseManaRecoveryRate = 611,
-+    AT_SKILL_IncreaseHpRecoveryRate = 612,
++    AT_SKILL_RestoreManaRate = 611,
++    AT_SKILL_RestoreHpRate = 612,
 +    AT_SKILL_IncreaseExcellentDamageRate = 613,
 +    AT_SKILL_IncreaseDoubleDamageRate = 614,
 +    AT_SKILL_IncreaseIgnoreDefenseRate = 615,
-+    AT_SKILL_IncreaseSdRecoveryRate = 616,
++    AT_SKILL_RestoreSdRate = 616,
 +    AT_SKILL_IncreaseTripleDamageRate = 617,
 +    AT_SKILL_MASTER_END = 617,
  };
