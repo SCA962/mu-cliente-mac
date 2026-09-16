@@ -1,0 +1,42 @@
+--- a/src/source/Engine/Object/ZzzOpenData.cpp
++++ b/src/source/Engine/Object/ZzzOpenData.cpp
+@@ -1380,6 +1380,21 @@
+     if (b->NumMeshs == 0) return;
+ 
+     gLoadData.OpenTexture(Index, L"Monster\\");
++
++    // Sin esto el bicho se mueve rigido: la velocidad de cada animacion no viene en el .bmd, la pone
++    // el motor al cargar (OpenMonsterModel hace exactamente estas mismas asignaciones). Los modelos
++    // del S8 traen las 7 acciones de siempre, asi que se les aplican las mismas velocidades.
++    if (b->NumActions > MONSTER01_DIE)
++    {
++        b->Actions[MONSTER01_STOP1].PlaySpeed = 0.25f;
++        b->Actions[MONSTER01_STOP2].PlaySpeed = 0.2f;
++        b->Actions[MONSTER01_WALK].PlaySpeed = 0.34f;
++        b->Actions[MONSTER01_ATTACK1].PlaySpeed = 0.33f;
++        b->Actions[MONSTER01_ATTACK2].PlaySpeed = 0.33f;
++        b->Actions[MONSTER01_SHOCK].PlaySpeed = 0.5f;
++        b->Actions[MONSTER01_DIE].PlaySpeed = 0.55f;
++        b->Actions[MONSTER01_DIE].Loop = true;
++    }
+ }
+ 
+ 
+--- a/src/source/Engine/Object/ZzzCharacter.cpp
++++ b/src/source/Engine/Object/ZzzCharacter.cpp
+@@ -13038,6 +13038,15 @@
+         const int rawType = static_cast<int>(type);
+         switch (rawType)
+         {
++        // Season 8: los NPC de Acheron. Sin esto el clasificador de mas abajo los manda a
++        // KIND_MONSTER (todo tipo >= 260 lo es) y salen con el nombre en rojo, barra de vida y
++        // tratados como bicho en vez de como NPC con el que se habla.
++        case 580:   // Captain Slough
++        case 581:   // Deruvish
++        case 582:   // Adniel
++        case 583:   // Jin
++        case 584:   // Sir Lesnar
++        case 604:   // Jin, el del mapa 92
+         case 367:
+         case 371:
+         case 375:

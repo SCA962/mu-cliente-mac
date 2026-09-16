@@ -1,4 +1,4 @@
-name: Cliente Mac de prueba con contenido S8 (parches 1 a 17)
+name: Cliente Mac de prueba con contenido S8 (parches 1 a 18)
 
 # Rama de prueba: NO publica release y NO toca los clientes de los jugadores.
 # Solo compila el runtime de Mac y lo deja como artefacto para probarlo a mano.
@@ -51,7 +51,15 @@ jobs:
           git apply ../receta/parche-16-antes-del-toro.patch
           git apply --check ../receta/parche-17-diagnostico-mallas.patch
           git apply ../receta/parche-17-diagnostico-mallas.patch
+          git apply --check ../receta/parche-18-animacion-y-npc.patch
+          git apply ../receta/parche-18-animacion-y-npc.patch
           git diff --stat
+          grep -q 'Actions\[MONSTER01_WALK\].PlaySpeed' src/source/Engine/Object/ZzzOpenData.cpp \
+            && echo "parche 18: velocidad de animacion de los bichos nuevos" \
+            || { echo "parche 18 no aplicado (animacion)" >&2; exit 1; }
+          grep -q 'case 583:   // Jin' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 18: los NPC de Acheron son NPC, no bichos" \
+            || { echo "parche 18 no aplicado (NPC)" >&2; exit 1; }
           grep -q 'Diagnostico malla' src/source/Render/Models/ZzzBMD.cpp \
             && echo "parche 17: diagnostico de mallas sin textura" \
             || { echo "parche 17 no aplicado" >&2; exit 1; }
