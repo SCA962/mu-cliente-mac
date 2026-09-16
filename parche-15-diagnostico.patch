@@ -1,0 +1,76 @@
+--- a/src/source/World/MapInfra/MapManager.cpp
++++ b/src/source/World/MapInfra/MapManager.cpp
+@@ -1455,6 +1455,23 @@
+                 mu_swprintf(FileName, L"%ls\\ExtTile0%d.jpg", WorldName, i);
+             LoadBitmap(FileName, BITMAP_MAPTILE + 13 + i, GL_NEAREST, GL_REPEAT, false);
+         }
++
++        // Diagnostico (16-09): deja en el log que texturas de casilla quedaron sin cargar en este
++        // mundo. Una casilla que pida una de estas se dibuja plana, sin textura.
++        {
++            wchar_t Lista[256] = L"";
++            for (int t = 0; t < 30; t++)
++            {
++                if (Bitmaps[BITMAP_MAPTILE + t].Width == 0)
++                {
++                    wchar_t Num[8];
++                    mu_swprintf(Num, L"%d ", t);
++                    wcscat(Lista, Num);
++                }
++            }
++            g_ErrorReport.Write(L"Diagnostico mundo %d: casillas sin textura: %ls\r\n",
++                                this->WorldActive, (Lista[0] != 0) ? Lista : L"ninguna");
++        }
+         if (IsPKField() || IsDoppelGanger2())
+         {
+             mu_swprintf(FileName, L"%ls\\TileGrass01_R.jpg", WorldName);
+--- a/src/source/Engine/Object/ZzzCharacter.cpp
++++ b/src/source/Engine/Object/ZzzCharacter.cpp
+@@ -15079,6 +15079,27 @@
+         }
+     }
+ 
++    // Diagnostico (16-09): una linea por tipo distinto, para saber si el cliente lo reconocio y con
++    // que modelo se quedo.
++    {
++        static bool s_AvisadoTipo[1024] = {};
++        const int TipoInt = static_cast<int>(Type);
++        if (TipoInt >= 0 && TipoInt < 1024 && s_AvisadoTipo[TipoInt] == false)
++        {
++            s_AvisadoTipo[TipoInt] = true;
++            if (c == NULL)
++            {
++                g_ErrorReport.Write(L"Diagnostico bicho: tipo %d NO se pudo crear\r\n", TipoInt);
++            }
++            else
++            {
++                const int ModeloInt = static_cast<int>(c->Object.Type);
++                g_ErrorReport.Write(L"Diagnostico bicho: tipo %d -> modelo %d, mallas %d\r\n",
++                                    TipoInt, ModeloInt, Models[ModeloInt].NumMeshs);
++            }
++        }
++    }
++
+     Setting_Monster(c, Type, PositionX, PositionY);
+ 
+     return c;
+--- a/src/source/Engine/Object/ZzzObject.cpp
++++ b/src/source/Engine/Object/ZzzObject.cpp
+@@ -4960,6 +4960,17 @@
+         memcpy(Angle, Data + DataPtr, sizeof(vec3_t)); DataPtr += sizeof(vec3_t);
+         float Scale = *((float*)(Data + DataPtr)); DataPtr += 4;
+         CreateObject(Type, Position, Angle, Scale);
++
++        // Diagnostico (16-09): objeto colocado cuyo modelo no tiene mallas. Una vez por tipo.
++        {
++            static bool s_AvisadoObjeto[512] = {};
++            if (Type >= 0 && Type < 512 && Models[Type].NumMeshs == 0 && s_AvisadoObjeto[Type] == false)
++            {
++                s_AvisadoObjeto[Type] = true;
++                g_ErrorReport.Write(L"Diagnostico objeto: el tipo %d del mundo %d no tiene mallas\r\n",
++                                    (int)Type, gMapManager.WorldActive);
++            }
++        }
+     }
+     delete[] Data;
+ 

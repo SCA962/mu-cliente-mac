@@ -1,4 +1,4 @@
-name: Cliente Mac de prueba con contenido S8 (parches 1 a 14)
+name: Cliente Mac de prueba con contenido S8 (parches 1 a 15)
 
 # Rama de prueba: NO publica release y NO toca los clientes de los jugadores.
 # Solo compila el runtime de Mac y lo deja como artefacto para probarlo a mano.
@@ -45,7 +45,13 @@ jobs:
           git apply ../receta/parche-13-terreno-capa2.patch
           git apply --check ../receta/parche-14-npc-y-textura.patch
           git apply ../receta/parche-14-npc-y-textura.patch
+          git apply --check ../receta/parche-15-diagnostico.patch
+          git apply ../receta/parche-15-diagnostico.patch
           git diff --stat
+          # parche 15: los tres diagnosticos que van al MuError.log
+          test "$(grep -rc 'Diagnostico' src/source/World/MapInfra/MapManager.cpp src/source/Engine/Object/ZzzCharacter.cpp src/source/Engine/Object/ZzzObject.cpp | grep -c ':0')" = "0" \
+            && echo "parche 15: diagnosticos en los tres ficheros" \
+            || { echo "parche 15 no aplicado" >&2; exit 1; }
           # parche 14: modelos propios de los NPC de Acheron y casillas sin textura
           grep -q 'MODEL_ACHERON_NPC_DERUVISH' src/source/Core/Globals/_enum.h \
             && echo "parche 14: modelos de los NPC de Acheron" \
