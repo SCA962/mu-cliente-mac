@@ -1,0 +1,161 @@
+--- a/src/source/Core/Globals/_enum.h
++++ b/src/source/Core/Globals/_enum.h
+@@ -1448,6 +1448,13 @@
+     MODEL_LUCKYITEM_NPC,
+     MODEL_TERSIA,
+     MODEL_BENA,
++    // Season 8: los NPC de Acheron. Sus modelos vienen en la Data del S8, en Npc\Akeron\
++    // (y adniel.bmd en Npc\), y se cargan por nombre, no por numero de bicho.
++    MODEL_ACHERON_NPC_SLOPE,
++    MODEL_ACHERON_NPC_DERUVISH,
++    MODEL_ACHERON_NPC_ADNIEL,
++    MODEL_ACHERON_NPC_JINN,
++    MODEL_ACHERON_NPC_LESNAR,
+     MODEL_NPC_END,
+     // player
+     MODEL_PLAYER,
+--- a/src/source/Engine/Object/ZzzOpenData.cpp
++++ b/src/source/Engine/Object/ZzzOpenData.cpp
+@@ -2048,8 +2048,28 @@
+ 
+     case MODEL_NPC_SEVINA:
+         gLoadData.AccessModel(MODEL_NPC_SEVINA, L"Data\\Npc\\", L"Sevina", 1);
++        gLoadData.OpenTexture(Type, L"Npc\\");
++        break;
++    case MODEL_ACHERON_NPC_SLOPE:
++        gLoadData.AccessModel(MODEL_ACHERON_NPC_SLOPE, L"Data\\Npc\\Akeron\\", L"slope", -1);
++        gLoadData.OpenTexture(Type, L"Npc\\Akeron\\");
++        break;
++    case MODEL_ACHERON_NPC_DERUVISH:
++        gLoadData.AccessModel(MODEL_ACHERON_NPC_DERUVISH, L"Data\\Npc\\Akeron\\", L"deruvish", -1);
++        gLoadData.OpenTexture(Type, L"Npc\\Akeron\\");
++        break;
++    case MODEL_ACHERON_NPC_ADNIEL:
++        gLoadData.AccessModel(MODEL_ACHERON_NPC_ADNIEL, L"Data\\Npc\\", L"adniel", -1);
+         gLoadData.OpenTexture(Type, L"Npc\\");
+         break;
++    case MODEL_ACHERON_NPC_JINN:
++        gLoadData.AccessModel(MODEL_ACHERON_NPC_JINN, L"Data\\Npc\\Akeron\\", L"jinn", -1);
++        gLoadData.OpenTexture(Type, L"Npc\\Akeron\\");
++        break;
++    case MODEL_ACHERON_NPC_LESNAR:
++        gLoadData.AccessModel(MODEL_ACHERON_NPC_LESNAR, L"Data\\Npc\\Akeron\\", L"lesnar", -1);
++        gLoadData.OpenTexture(Type, L"Npc\\Akeron\\");
++        break;
+     case MODEL_NPC_ARCHANGEL:
+         gLoadData.AccessModel(MODEL_NPC_ARCHANGEL, L"Data\\Npc\\", L"BloodCastle", 1);
+         gLoadData.OpenTexture(Type, L"Npc\\");
+--- a/src/source/Engine/Object/ZzzCharacter.cpp
++++ b/src/source/Engine/Object/ZzzCharacter.cpp
+@@ -15032,6 +15032,36 @@
+     // Patch 11: monsters the client does not know by name, listed in
+     // Data\\Local\\ExtraMonsters.txt. Without this the whole viewport packet is
+     // dropped at the first unknown monster, so nothing else around it shows up.
++    // Season 8: los NPC de Acheron no son bichos, tienen modelo propio por nombre. Sin esto caian
++    // en la tabla de bichos del parche 11 y salian con la figura del Monster que tocara por numero.
++    if (c == NULL)
++    {
++        int AcheronNpc = 0;
++        switch (static_cast<int>(Type))
++        {
++        case 580: AcheronNpc = MODEL_ACHERON_NPC_SLOPE; break;
++        case 581: AcheronNpc = MODEL_ACHERON_NPC_DERUVISH; break;
++        case 582: AcheronNpc = MODEL_ACHERON_NPC_ADNIEL; break;
++        case 583: AcheronNpc = MODEL_ACHERON_NPC_JINN; break;
++        case 584: AcheronNpc = MODEL_ACHERON_NPC_LESNAR; break;
++        default: break;
++        }
++
++        if (AcheronNpc != 0)
++        {
++            OpenNpc(AcheronNpc);
++            if (Models[AcheronNpc].NumMeshs > 0)
++            {
++                c = CreateCharacter(Key, AcheronNpc, PositionX, PositionY);
++                if (c != NULL)
++                {
++                    c->Object.Kind = KIND_NPC;
++                    c->Object.Scale = 1.0f;
++                }
++            }
++        }
++    }
++
+     if (c == NULL)
+     {
+         int ExtraModel = 0;
+--- a/src/source/Render/Terrain/ZzzLodTerrain.cpp
++++ b/src/source/Render/Terrain/ZzzLodTerrain.cpp
+@@ -1234,6 +1234,28 @@
+     }
+ }
+ 
++// Una casilla puede pedir una textura que la Data del mapa no trae: Acheron usa el indice 12
++// (TileRock06) en dos casillas y ese fichero no viene ni en el cliente S8 original, y Debenter usa
++// el 20 (ExtTile07) en otras dos. Cuando eso pasa, Bitmaps[...].Width vale 0: el ancho de textura
++// sale de una division por cero, las coordenadas quedan infinitas y la casilla se dibuja como un
++// plano gris que ademas arrastra a lo que se pinte despues. Se cae a la primera textura del mapa,
++// que siempre esta cargada, y se deja constancia una vez por indice.
++static int SafeTileTexture(int Texture)
++{
++    if (Texture >= 0 && Bitmaps[BITMAP_MAPTILE + Texture].Width > 0)
++        return Texture;
++
++    static bool s_Avisado[256] = {};
++    if (Texture >= 0 && Texture < 256 && s_Avisado[Texture] == false)
++    {
++        s_Avisado[Texture] = true;
++        g_ErrorReport.Write(L"Terreno: el mundo %d pide la textura de casilla %d y no esta cargada\r\n",
++                            gMapManager.WorldActive, Texture);
++    }
++
++    return 0;
++}
++
+ void RenderFace(int Texture, int mx, int my)
+ {
+     if (gMapManager.WorldActive == WD_39KANTURU_3RD)
+@@ -1292,7 +1314,7 @@
+ #endif	// ASG_ADD_MAP_KARUTAN
+     else
+         DisableAlphaBlend();
+-    BindTexture(BITMAP_MAPTILE + Texture);
++    BindTexture(BITMAP_MAPTILE + SafeTileTexture(Texture));
+ 
+     auto MakeVert = [](const float* pos, const float* tc, const float* light) -> mu::Vertex3D
+     {
+@@ -1316,7 +1338,7 @@
+     else
+         return;
+ 
+-    BindTexture(BITMAP_MAPTILE + Texture);
++    BindTexture(BITMAP_MAPTILE + SafeTileTexture(Texture));
+ 
+     auto MakeVert = [](const float* pos, const float* tc, const float* light) -> mu::Vertex3D
+     {
+@@ -1335,7 +1357,7 @@
+ {
+     DisableDepthTest();
+     EnableAlphaBlend3();
+-    BindTexture(BITMAP_MAPTILE + Texture);
++    BindTexture(BITMAP_MAPTILE + SafeTileTexture(Texture));
+     auto MakeVert = [](const float* pos, const float* tc, const float* light, float alpha) -> mu::Vertex3D
+     {
+         return {pos[0], pos[1], pos[2], 0.f, 0.f, 1.f, tc[0], tc[1],
+@@ -1353,7 +1375,7 @@
+ void RenderFaceBlend(int Texture, int mx, int my)
+ {
+     EnableAlphaBlend();
+-    BindTexture(BITMAP_MAPTILE + Texture);
++    BindTexture(BITMAP_MAPTILE + SafeTileTexture(Texture));
+     auto MakeVert = [](const float* pos, const float* tc, float light) -> mu::Vertex3D
+     {
+         return {pos[0], pos[1], pos[2], 0.f, 0.f, 1.f, tc[0], tc[1], mu::PackABGR(light, light, light, 1.f)};
+@@ -1370,6 +1392,7 @@
+ {
+     vec3_t Light, Pos;
+     Vector(0.30f, 0.40f, 0.20f, Light);
++    Texture = SafeTileTexture(Texture);
+     BITMAP_t* b = &Bitmaps[BITMAP_MAPTILE + Texture];
+     float Width, Height;
+     if (Scale)
