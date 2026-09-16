@@ -1,0 +1,212 @@
+diff --git a/src/Localization/Game.en.resx b/src/Localization/Game.en.resx
+index cae014c..258b18f 100644
+--- a/src/Localization/Game.en.resx
++++ b/src/Localization/Game.en.resx
+@@ -12970,4 +12970,7 @@
+   <data name="ChatCommandsUnknownCommand" xml:space="preserve">
+     <value>This command is not available anymore.</value>
+   </data>
++  <data name="Debenter" xml:space="preserve">
++    <value>Debenter</value>
++  </data>
+ </root>
+diff --git a/src/source/Core/Globals/_enum.h b/src/source/Core/Globals/_enum.h
+index a314865..400d28c 100644
+--- a/src/source/Core/Globals/_enum.h
++++ b/src/source/Core/Globals/_enum.h
+@@ -215,6 +215,9 @@ constexpr const char* MUSIC_EMPIREGUARDIAN3 = "data\\music\\ImperialGuardianFort
+ constexpr const char* MUSIC_EMPIREGUARDIAN4 = "data\\music\\ImperialGuardianFort.mp3";
+ constexpr const char* MUSIC_DOPPELGANGER = "data\\music\\iDoppelganger.mp3";
+ constexpr const char* MUSIC_UNITEDMARKETPLACE = "data\\music\\iDoppelganger.mp3";
++// Season 8: Acheron.mp3 ya viene en la Data y Map96.mp3 es la pista del mundo de Debenter.
++constexpr const char* MUSIC_ACHERON = "data\\music\\Acheron.mp3";
++constexpr const char* MUSIC_DEBENTER = "data\\music\\Map96.mp3";
+ #ifdef ASG_ADD_MAP_KARUTAN
+ constexpr const char* MUSIC_KARUTAN1 = "data\\music\\Karutan_A.mp3";
+ constexpr const char* MUSIC_KARUTAN2 = "data\\music\\Karutan_B.mp3";
+@@ -631,7 +634,16 @@ enum ActionSkillType
+     AT_SKILL_RecoverHPfromMonsterKills = 606,
+     AT_SKILL_IncreaseMinimumAttackPower = 607,
+     AT_SKILL_RecoverManaMonsterKills = 608,
+-    AT_SKILL_MASTER_END = 608,
++    AT_SKILL_IncreaseMaximumAttackPower = 609,
++    AT_SKILL_IncreaseCriticalDamageRate = 610,
++    AT_SKILL_IncreaseManaRecoveryRate = 611,
++    AT_SKILL_IncreaseHpRecoveryRate = 612,
++    AT_SKILL_IncreaseExcellentDamageRate = 613,
++    AT_SKILL_IncreaseDoubleDamageRate = 614,
++    AT_SKILL_IncreaseIgnoreDefenseRate = 615,
++    AT_SKILL_IncreaseSdRecoveryRate = 616,
++    AT_SKILL_IncreaseTripleDamageRate = 617,
++    AT_SKILL_MASTER_END = 617,
+ };
+ 
+ inline const std::map<ActionSkillType, ActionSkillType> SKILL_REPLACEMENTS = {
+diff --git a/src/source/Scenes/SceneManager.cpp b/src/source/Scenes/SceneManager.cpp
+index a37b119..ef580b4 100644
+--- a/src/source/Scenes/SceneManager.cpp
++++ b/src/source/Scenes/SceneManager.cpp
+@@ -1161,6 +1161,20 @@ static void ManageBackgroundMusic()
+         StopMp3(MUSIC_SWAMP_OF_QUIET);
+     }
+ 
++    if (gMapManager.WorldActive == WD_91ACHERON || gMapManager.WorldActive == WD_92ACHERON_EVENT) {
++        PlayMp3(MUSIC_ACHERON);
++    }
++    else {
++        StopMp3(MUSIC_ACHERON);
++    }
++
++    if (gMapManager.WorldActive == WD_95DEBENTER || gMapManager.WorldActive == WD_96DEBENTER_EVENT) {
++        PlayMp3(MUSIC_DEBENTER);
++    }
++    else {
++        StopMp3(MUSIC_DEBENTER);
++    }
++
+     g_Raklion.PlayBGM();
+     g_SantaTown.PlayBGM();
+     g_PKField.PlayBGM();
+diff --git a/src/source/UI/Legacy/UIMapName.cpp b/src/source/UI/Legacy/UIMapName.cpp
+index 5d7c9f0..3a4fd3b 100644
+--- a/src/source/UI/Legacy/UIMapName.cpp
++++ b/src/source/UI/Legacy/UIMapName.cpp
+@@ -115,6 +115,14 @@ void CUIMapName::InitImgPathMap()
+     m_mapImgPath[80] = strFolderName + L"MapName_Karutan.tga";
+     m_mapImgPath[81] = strFolderName + L"MapName_Karutan.tga";
+ #endif	// ASG_ADD_MAP_KARUTAN
++
++    // Season 8. Debenter (95 y 96) no tiene placa propia en la Data del S8: se queda sin dibujo,
++    // y de eso se encarga la comprobacion de ShowMapName.
++    m_mapImgPath[91] = strFolderName + L"MapName_Akeron.tga";
++    m_mapImgPath[92] = strFolderName + L"MapName_Akeron.tga";
++    m_mapImgPath[97] = strFolderName + L"chaoscastle.tga";
++    m_mapImgPath[98] = strFolderName + L"IllusionTemple.tga";
++    m_mapImgPath[99] = strFolderName + L"IllusionTemple.tga";
+ }
+ 
+ void CUIMapName::Init()
+@@ -124,6 +132,7 @@ void CUIMapName::Init()
+     m_dwOldTime = ::timeGetTime();
+     m_dwDeltaTickSum = 0;
+     m_fAlpha = 1.0f;
++    m_bHasImg = false;
+ #ifdef ASG_ADD_GENS_SYSTEM
+     m_bStrife = false;
+ #endif	// ASG_ADD_GENS_SYSTEM
+@@ -143,11 +152,18 @@ void CUIMapName::ShowMapName()
+ 
+     if (m_nOldWorld != gMapManager.WorldActive)
+     {
+-        wchar_t szImgPath[128];
+-        ::wcscpy(szImgPath, m_mapImgPath[gMapManager.WorldActive].data());
++        // Un mundo sin placa no es un error: se deja de dibujar y ya. Antes se cargaba una ruta
++        // vacia, LoadBitmap fallaba y saltaba un dialogo modal que dejaba el juego parado.
++        const ImgPathMap::const_iterator it = m_mapImgPath.find(gMapManager.WorldActive);
++        m_bHasImg = (it != m_mapImgPath.end() && it->second.empty() == false);
+ 
+         DeleteBitmap(BITMAP_INTERFACE_EX + 45);
+-        LoadBitmap(szImgPath, BITMAP_INTERFACE_EX + 45);
++        if (m_bHasImg)
++        {
++            wchar_t szImgPath[128];
++            ::wcscpy(szImgPath, it->second.data());
++            LoadBitmap(szImgPath, BITMAP_INTERFACE_EX + 45);
++        }
+ 
+         m_nOldWorld = gMapManager.WorldActive;
+ 
+@@ -199,7 +215,7 @@ void CUIMapName::Render()
+ {
+     Update();
+ 
+-    if (HIDE == m_eState)
++    if (HIDE == m_eState || m_bHasImg == false)
+         return;
+ 
+     const float imageX = UI::MapName::PhysicalLeft(WindowWidth);
+diff --git a/src/source/UI/Legacy/UIMapName.h b/src/source/UI/Legacy/UIMapName.h
+index dfa7f4f..e5b9b70 100644
+--- a/src/source/UI/Legacy/UIMapName.h
++++ b/src/source/UI/Legacy/UIMapName.h
+@@ -30,6 +30,7 @@ protected:
+     DWORD m_dwOldTime;
+     DWORD m_dwDeltaTickSum;
+     float m_fAlpha;
++    bool m_bHasImg;
+ #ifdef ASG_ADD_GENS_SYSTEM
+     bool m_bStrife;
+ #endif
+diff --git a/src/source/UI/NewUI/HUD/NewUIMasterLevel.cpp b/src/source/UI/NewUI/HUD/NewUIMasterLevel.cpp
+index 90cfac6..5c8f7d7 100644
+--- a/src/source/UI/NewUI/HUD/NewUIMasterLevel.cpp
++++ b/src/source/UI/NewUI/HUD/NewUIMasterLevel.cpp
+@@ -352,6 +352,11 @@ bool SEASON3B::CNewUIMasterLevel::SetMasterSkillTreeInfo(int index, BYTE skillLe
+         return false;
+     }
+ 
++    if (it->second.Skill > AT_SKILL_MASTER_END)
++    {
++        return false;
++    }
++
+     const CSkillTreeInfo skillInfo = { skillLevel, value, nextvalue };
+     CharacterAttribute->MasterSkillInfo[it->second.Skill] = skillInfo;
+ 
+@@ -1038,6 +1043,11 @@ void SEASON3B::CNewUIMasterLevel::SkillUpgrade(int index, BYTE skillLevel, float
+     }
+ 
+     const auto realSkill = it->second.Skill;
++    if (realSkill > AT_SKILL_MASTER_END)
++    {
++        return;
++    }
++
+     const int oldLevel = CharacterAttribute->MasterSkillInfo[realSkill].GetSkillLevel();
+ 
+     const CSkillTreeInfo skillTreeInfo = { skillLevel, value, nextValue };
+diff --git a/src/source/World/MapInfra/MapManager.cpp b/src/source/World/MapInfra/MapManager.cpp
+index 4877a14..811a3c5 100644
+--- a/src/source/World/MapInfra/MapManager.cpp
++++ b/src/source/World/MapInfra/MapManager.cpp
+@@ -1815,5 +1815,21 @@ const wchar_t* CMapManager::GetMapName(int iMap)
+     {
+         return (I18N::Game::Karutan);
+     }
++    if (iMap == WD_91ACHERON || iMap == WD_92ACHERON_EVENT)
++    {
++        return (I18N::Game::Acheron);
++    }
++    if (iMap == WD_95DEBENTER || iMap == WD_96DEBENTER_EVENT)
++    {
++        return (I18N::Game::Debenter);
++    }
++    if (iMap == WD_97CHAOSCASTLE_SURVIVAL)
++    {
++        return (I18N::Game::ChaosCastle);
++    }
++    if (iMap == WD_98ILLUSIONTEMPLE_FINAL1 || iMap == WD_99ILLUSIONTEMPLE_FINAL2)
++    {
++        return (I18N::Game::IllusionTemple);
++    }
+     return (I18N::Game::Lookup(30 + iMap));
+ }
+diff --git a/src/source/World/MapInfra/MapManager.h b/src/source/World/MapInfra/MapManager.h
+index 8e75375..0ed255e 100644
+--- a/src/source/World/MapInfra/MapManager.h
++++ b/src/source/World/MapInfra/MapManager.h
+@@ -66,6 +66,14 @@ enum ENUM_WORLD
+     WD_79UNITEDMARKETPLACE = 79,
+     WD_80KARUTAN1 = 80,
+     WD_81KARUTAN2 = 81,
++    // Season 8. Los pares 91/92 y 95/96 son el mapa de caza y su gemelo de evento (mismo terreno).
++    WD_91ACHERON = 91,
++    WD_92ACHERON_EVENT = 92,
++    WD_95DEBENTER = 95,
++    WD_96DEBENTER_EVENT = 96,
++    WD_97CHAOSCASTLE_SURVIVAL = 97,
++    WD_98ILLUSIONTEMPLE_FINAL1 = 98,
++    WD_99ILLUSIONTEMPLE_FINAL2 = 99,
+     NUM_WD
+ };
+ 

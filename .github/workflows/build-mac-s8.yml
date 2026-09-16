@@ -1,4 +1,4 @@
-name: Cliente Mac de prueba con contenido S8 (parches 1 a 11)
+name: Cliente Mac de prueba con contenido S8 (parches 1 a 12)
 
 # Rama de prueba: NO publica release y NO toca los clientes de los jugadores.
 # Solo compila el runtime de Mac y lo deja como artefacto para probarlo a mano.
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-macos:
-    name: macOS arm64 Release (editor OFF) con parches 1 a 11
+    name: macOS arm64 Release (editor OFF) con parches 1 a 12
     runs-on: macos-latest
 
     steps:
@@ -39,7 +39,28 @@ jobs:
           git apply ../receta/cliente-mac-parches.patch
           git apply --check ../receta/parche-11-contenido-extra.patch
           git apply ../receta/parche-11-contenido-extra.patch
+          git apply --check ../receta/parche-12-mapas-s8.patch
+          git apply ../receta/parche-12-mapas-s8.patch
           git diff --stat
+          # parche 12: mapas del S8 (nombre, placa, musica) y skills maestras 609-617
+          grep -q 'WD_91ACHERON = 91' src/source/World/MapInfra/MapManager.h \
+            && echo "parche 12: mundos del S8 en el enum" \
+            || { echo "parche 12 no aplicado (enum de mundos)" >&2; exit 1; }
+          grep -q 'I18N::Game::Debenter' src/source/World/MapInfra/MapManager.cpp \
+            && echo "parche 12: nombre de los mapas nuevos" \
+            || { echo "parche 12 no aplicado (nombre de mapa)" >&2; exit 1; }
+          grep -q 'MapName_Akeron.tga' src/source/UI/Legacy/UIMapName.cpp \
+            && echo "parche 12: placa de Acheron" \
+            || { echo "parche 12 no aplicado (placa)" >&2; exit 1; }
+          grep -q 'm_bHasImg' src/source/UI/Legacy/UIMapName.cpp \
+            && echo "parche 12: un mundo sin placa ya no abre el dialogo que paraba el juego" \
+            || { echo "parche 12 no aplicado (guarda de LoadBitmap)" >&2; exit 1; }
+          grep -q 'AT_SKILL_MASTER_END = 617' src/source/Core/Globals/_enum.h \
+            && echo "parche 12: skills maestras hasta la 617" \
+            || { echo "parche 12 no aplicado (skills 609-617)" >&2; exit 1; }
+          grep -q 'name="Debenter"' src/Localization/Game.en.resx \
+            && echo "parche 12: texto Debenter en la localizacion" \
+            || { echo "parche 12 no aplicado (localizacion)" >&2; exit 1; }
           grep -q 'ExtraItems.txt' src/source/Engine/Object/ZzzOpenData.cpp \
             && echo "parche 11: tabla de items extra en el codigo" \
             || { echo "parche 11 no aplicado (items)" >&2; exit 1; }
