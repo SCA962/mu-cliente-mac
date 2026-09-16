@@ -5,6 +5,9 @@ name: Cliente Mac de prueba con contenido S8 (parches 1 a 11)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - s8-pruebas
 
 permissions:
   contents: read
