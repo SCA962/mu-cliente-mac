@@ -74,10 +74,10 @@ index acbc82d..a94ff08 100644
  #define ITEM_SWORD		 (ITEM_GROUP_SWORD)
  #define ITEM_AXE		 (ITEM_GROUP_AXE*MAX_ITEM_INDEX)
 diff --git a/src/source/Engine/Object/ZzzCharacter.cpp b/src/source/Engine/Object/ZzzCharacter.cpp
-index b270dbc..718bfe5 100644
+index b270dbc..366c20f 100644
 --- a/src/source/Engine/Object/ZzzCharacter.cpp
 +++ b/src/source/Engine/Object/ZzzCharacter.cpp
-@@ -6395,10 +6395,56 @@ void MoveCharacterPosition(CHARACTER* c)
+@@ -6395,10 +6395,59 @@ void MoveCharacterPosition(CHARACTER* c)
      o->Timer += 0.15f * FPS_ANIMATION_FACTOR;
  }
  
@@ -129,12 +129,15 @@ index b270dbc..718bfe5 100644
  {
      if (c == Hero) return;
  
-+    MovePandoraMiningZone(c, o);
++    if (c->Dead == 0)
++    {
++        MovePandoraMiningZone(c, o);
++    }
 +
      if (c->Dead == 0)
      {
          if (c->MonsterIndex == MONSTER_ILLUSION_ITEM_STORAGE || c->MonsterIndex == MONSTER_ALLIANCE_ITEM_STORAGE)
-@@ -13047,6 +13093,12 @@ namespace
+@@ -13047,6 +13096,12 @@ namespace
          case 583:   // Jin
          case 584:   // Sir Lesnar
          case 604:   // Jin, el del mapa 92
@@ -147,7 +150,7 @@ index b270dbc..718bfe5 100644
          case 367:
          case 371:
          case 375:
-@@ -13200,6 +13252,38 @@ static CHARACTER* CreateSeason8Character(EMonsterType Type, int PositionX, int P
+@@ -13200,6 +13255,44 @@ static CHARACTER* CreateSeason8Character(EMonsterType Type, int PositionX, int P
      CHARACTER* c = NULL;
      const int TipoInt = static_cast<int>(Type);
  
@@ -166,6 +169,16 @@ index b270dbc..718bfe5 100644
 +    {
 +        const int ZonaIndex = static_cast<int>(MODEL_MONSTER01) + PANDORA_ZONE_MODEL_INDEX;
 +        c = CreateCharacter(Key, ZonaIndex, PositionX, PositionY);
++
++        // CreateCharacter NUNCA devuelve NULL: cuando no queda hueco devuelve el centinela
++        // &CharactersClient[MAX_CHARACTERS_CLIENT], que existe de verdad porque Winmain reserva
++        // MAX_CHARACTERS_CLIENT + 1 + 128. Comprobar contra NULL no comprobaba nada.
++        if (c == &CharactersClient[MAX_CHARACTERS_CLIENT])
++        {
++            g_ErrorReport.Write(L"Season 8: sin hueco de personaje para la zona de mineria tipo %d\r\n", TipoInt);
++            return NULL;
++        }
++
 +        if (c != NULL)
 +        {
 +            // Caja plana, mas ancha cuanto mayor la zona: azul, morada, dorada. Sin caja no se
@@ -174,10 +187,6 @@ index b270dbc..718bfe5 100644
 +            Vector(-Ancho, -Ancho, 0.f, c->Object.BoundingBoxMin);
 +            Vector(Ancho, Ancho, 80.f, c->Object.BoundingBoxMax);
 +            c->Object.Scale = 1.0f;
-+        }
-+        else
-+        {
-+            g_ErrorReport.Write(L"Season 8: no se pudo crear la zona de mineria tipo %d\r\n", TipoInt);
 +        }
 +
 +        return c;
@@ -218,10 +227,10 @@ index ed977b7..f05d28b 100644
  			{
  				const int level = CharacterAttribute->Level;
 diff --git a/src/source/Network/Server/WSclient.cpp b/src/source/Network/Server/WSclient.cpp
-index 5f2981a..fcff0f1 100644
+index 5f2981a..100a8c7 100644
 --- a/src/source/Network/Server/WSclient.cpp
 +++ b/src/source/Network/Server/WSclient.cpp
-@@ -13446,6 +13446,235 @@ void ReceiveDarkside(const BYTE* ReceiveBuffer)
+@@ -13446,6 +13446,249 @@ void ReceiveDarkside(const BYTE* ReceiveBuffer)
      }
  }
  
@@ -270,8 +279,13 @@ index 5f2981a..fcff0f1 100644
 +    msg.ZoneClassH = HIBYTE(ZoneClass);   msg.ZoneClassL = LOBYTE(ZoneClass);
 +    msg.MapNumber = (BYTE)gMapManager.WorldActive;
 +
-+    // Si se cambia de veta, la cadena empieza de cero.
-+    if (!g_PandoraMining.Active || g_PandoraMining.ZoneId != ZoneId)
++    // Si se cambia de veta, la cadena empieza de cero. Hay que comparar TAMBIEN el mapa: los ids de
++    // objeto se reparten por mapa desde la misma base (un IdGenerator por instancia de mapa), asi
++    // que la primera veta de Tarkan y la primera de Aida tienen el mismo id. Sin esta comprobacion,
++    // cruzar de mapa mandaba la fase de la cadena vieja y se perdia el primer clic.
++    if (!g_PandoraMining.Active
++        || g_PandoraMining.ZoneId != ZoneId
++        || g_PandoraMining.MapNumber != msg.MapNumber)
 +    {
 +        ResetPandoraMiningState();
 +        g_PandoraMining.ZoneId = ZoneId;
@@ -405,7 +419,20 @@ index 5f2981a..fcff0f1 100644
 +        PandoraShowJewelCount(ZoneId, (int)JewelCount);
 +    }
 +
-+    if (Result == PANDORA_RESULT_OK)
++    // Sin hueco en el inventario pero con joyas ya ganadas: el servidor deja la cadena abierta
++    // para que se puedan cobrar, asi que aqui hay que reabrir el cartel en vez de resetear.
++    const bool ReabrirPorFalta = (Result == PANDORA_RESULT_NO_SPACE && JewelCount > 0);
++    if (ReabrirPorFalta)
++    {
++        g_PandoraMining.ZoneId = ZoneId;
++        g_PandoraMining.ZoneClass = ZoneClass;
++        g_PandoraMining.MapNumber = Data->MapNumber;
++        g_PandoraMining.Stage = Data->Stage;
++        g_PandoraMining.JewelCount = (int)JewelCount;
++        g_PandoraMining.Active = true;
++    }
++
++    if (Result == PANDORA_RESULT_OK || ReabrirPorFalta)
 +    {
 +        // Fases 1 a 4: el jugador elige entre cobrar y seguir.
 +        SEASON3B::CNewUICommonMessageBox* pMsgBox = nullptr;
@@ -420,13 +447,9 @@ index 5f2981a..fcff0f1 100644
 +                            SEASON3B::MSGBOX_FONT_NORMAL);
 +        }
 +    }
-+    else if (Result != PANDORA_RESULT_OK_FINAL)
-+    {
-+        // Cualquier otro resultado corta la cadena; la fase 5 la cierra el propio servidor.
-+        ResetPandoraMiningState();
-+    }
 +    else
 +    {
++        // Cualquier otro resultado corta la cadena; la fase 5 la cierra el propio servidor.
 +        ResetPandoraMiningState();
 +    }
 +}
@@ -457,7 +480,7 @@ index 5f2981a..fcff0f1 100644
  static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
  {
      auto received_span = std::span<const BYTE>(ReceiveBuffer, Size);
-@@ -14955,6 +15184,31 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
+@@ -14955,6 +15198,31 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
      case 0x4B:
          ReceiveDarkside(ReceiveBuffer);
          break;
