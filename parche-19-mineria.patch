@@ -1,0 +1,696 @@
+diff --git a/src/Localization/Game.en.resx b/src/Localization/Game.en.resx
+index 258b18f..254bc1b 100644
+--- a/src/Localization/Game.en.resx
++++ b/src/Localization/Game.en.resx
+@@ -12973,4 +12973,40 @@
+   <data name="Debenter" xml:space="preserve">
+     <value>Debenter</value>
+   </data>
++  <data name="PandoraMiningJewelsSoFar" xml:space="preserve">
++    <value>You have acquired a total of %d jewels so far.</value>
++  </data>
++  <data name="PandoraMiningPickUpQuestion" xml:space="preserve">
++    <value>Do you want to pick up this jewel? Press OK to take them, Cancel to keep mining.</value>
++  </data>
++  <data name="PandoraMiningSuccess" xml:space="preserve">
++    <value>Congratulations. You successfully mined!</value>
++  </data>
++  <data name="PandoraMiningFailed" xml:space="preserve">
++    <value>Sorry, your mining wasn't successful.</value>
++  </data>
++  <data name="PandoraMiningRewardReceived" xml:space="preserve">
++    <value>You have received the reward for the mining.</value>
++  </data>
++  <data name="PandoraMiningZoneInUse" xml:space="preserve">
++    <value>Someone else is mining in this area.</value>
++  </data>
++  <data name="PandoraMiningTransformed" xml:space="preserve">
++    <value>You cannot mine when you are in another form.</value>
++  </data>
++  <data name="PandoraMiningNoSpace" xml:space="preserve">
++    <value>You don't have enough space in your inventory.</value>
++  </data>
++  <data name="PandoraMiningBusy" xml:space="preserve">
++    <value>You cannot mine while trading/buying.</value>
++  </data>
++  <data name="PandoraMiningPrivateStore" xml:space="preserve">
++    <value>You cannot mine when you have a private store.</value>
++  </data>
++  <data name="PandoraMiningNoDurability" xml:space="preserve">
++    <value>You don't have enough durability. Use Jewels of Bless to repair your equipment.</value>
++  </data>
++  <data name="PandoraMiningNeedPick" xml:space="preserve">
++    <value>You need a Pandora Pick equipped to mine here.</value>
++  </data>
+ </root>
+diff --git a/src/source/Core/Globals/_define.h b/src/source/Core/Globals/_define.h
+index acbc82d..a94ff08 100644
+--- a/src/source/Core/Globals/_define.h
++++ b/src/source/Core/Globals/_define.h
+@@ -384,6 +384,25 @@ constexpr int ITEM_GROUP_HELPER = 13;
+ constexpr int ITEM_GROUP_POTION = 14;
+ constexpr int ITEM_GROUP_ETC = 15;
+ 
++// -----------------------------------------------------------------------------
++// Season 8: sistema de mineria Jewel of Pandora.
++//
++// Las tres zonas son tipos de bicho del servidor (Data/Monster/Monster.txt:564-566 del paquete S8)
++// que NO tienen modelo: en el cliente original son un efecto de luz que parpadea en el suelo, y de
++// hecho Monster237.bmd a Monster239.bmd, que serian los suyos, no existen en la Data.
++// El pico es el grupo 0 (espadas) indice 41, y ya tiene ficha en Data/Local/Eng/item_eng.bmd.
++// -----------------------------------------------------------------------------
++constexpr int PANDORA_ZONE_SMALL = 605;
++constexpr int PANDORA_ZONE_MEDIUM = 606;
++constexpr int PANDORA_ZONE_LARGE = 607;
++constexpr int PANDORA_PICK_TYPE = ITEM_GROUP_SWORD * MAX_ITEM_INDEX + 41;
++
++// Hueco de modelo que NUNCA se carga, reservado para las zonas de mineria. El motor ya sabe llevar
++// un personaje sin malla: RenderCharacter sale solo si NumActions == 0 y MoveCharacterVisual arma
++// la caja de seleccion desde BoundingBoxMin/Max. Los bichos del S8 llegan al indice 258 y
++// MAX_MODEL_MONSTER es 400, asi que el 399 esta libre de sobra.
++constexpr int PANDORA_ZONE_MODEL_INDEX = MAX_MODEL_MONSTER - 1;
++
+ //item index
+ #define ITEM_SWORD		 (ITEM_GROUP_SWORD)
+ #define ITEM_AXE		 (ITEM_GROUP_AXE*MAX_ITEM_INDEX)
+diff --git a/src/source/Engine/Object/ZzzCharacter.cpp b/src/source/Engine/Object/ZzzCharacter.cpp
+index b270dbc..718bfe5 100644
+--- a/src/source/Engine/Object/ZzzCharacter.cpp
++++ b/src/source/Engine/Object/ZzzCharacter.cpp
+@@ -6395,10 +6395,56 @@ void MoveCharacterPosition(CHARACTER* c)
+     o->Timer += 0.15f * FPS_ANIMATION_FACTOR;
+ }
+ 
++// Season 8: el parpadeo de una zona de mineria de la Jewel of Pandora.
++//
++// Las zonas no tienen modelo (ver CreateSeason8Character), asi que lo unico que se ve de ellas es
++// esto. Es la misma receta de la farola de Lorencia (ZzzObject.cpp, MODEL_STREET_LIGHT): la
++// luminosidad al azar en cada fotograma ES el parpadeo. El radio de la luz y el color cambian con
++// el tamano de la zona, que en el original son azul, morada y dorada.
++static void MovePandoraMiningZone(CHARACTER* c, OBJECT* o)
++{
++    const int TipoInt = static_cast<int>(c->MonsterIndex);
++    if (TipoInt < PANDORA_ZONE_SMALL || TipoInt > PANDORA_ZONE_LARGE)
++        return;
++
++    const int Radio = 2 + (TipoInt - PANDORA_ZONE_SMALL);
++    const float Luminosity = (float)(rand() % 6 + 5) * 0.1f;
++
++    vec3_t Light;
++    switch (TipoInt)
++    {
++    case PANDORA_ZONE_SMALL:
++        Vector(Luminosity * 0.35f, Luminosity * 0.65f, Luminosity, Light);
++        break;
++    case PANDORA_ZONE_MEDIUM:
++        Vector(Luminosity * 0.75f, Luminosity * 0.30f, Luminosity, Light);
++        break;
++    default:
++        Vector(Luminosity, Luminosity * 0.85f, Luminosity * 0.25f, Light);
++        break;
++    }
++
++    AddTerrainLight(o->Position[0], o->Position[1], Light, Radio, PrimaryTerrainLight);
++
++    // Y unas particulas subiendo, para que se vea desde lejos. Menos a menudo cuanto mas chica.
++    if (rand_fps_check(4))
++    {
++        const float Dispersion = 20.f * (float)Radio;
++        vec3_t Position;
++        VectorCopy(o->Position, Position);
++        Position[0] += (float)(rand() % 200 - 100) * 0.01f * Dispersion;
++        Position[1] += (float)(rand() % 200 - 100) * 0.01f * Dispersion;
++        Position[2] += 10.f;
++        CreateParticle(BITMAP_LIGHT, Position, o->Angle, Light, 0, 0.8f);
++    }
++}
++
+ void MoveMonsterClient(CHARACTER* c, OBJECT* o)
+ {
+     if (c == Hero) return;
+ 
++    MovePandoraMiningZone(c, o);
++
+     if (c->Dead == 0)
+     {
+         if (c->MonsterIndex == MONSTER_ILLUSION_ITEM_STORAGE || c->MonsterIndex == MONSTER_ALLIANCE_ITEM_STORAGE)
+@@ -13047,6 +13093,12 @@ namespace
+         case 583:   // Jin
+         case 584:   // Sir Lesnar
+         case 604:   // Jin, el del mapa 92
++        // Season 8: las tres zonas de la mineria Jewel of Pandora. Mismo motivo que los NPC de
++        // arriba: no son bichos, son un punto del suelo con el que se interactua. Como KIND_MONSTER
++        // saldrian con el nombre en rojo y barra de vida, y el clic izquierdo intentaria pegarles.
++        case 605:   // Mining Area (Small)
++        case 606:   // Mining Area (Medium)
++        case 607:   // Mining Area (Large)
+         case 367:
+         case 371:
+         case 375:
+@@ -13200,6 +13252,38 @@ static CHARACTER* CreateSeason8Character(EMonsterType Type, int PositionX, int P
+     CHARACTER* c = NULL;
+     const int TipoInt = static_cast<int>(Type);
+ 
++    // Season 8: las tres zonas de la mineria Jewel of Pandora NO tienen modelo. En el cliente
++    // original son un efecto de luz que parpadea en el suelo, y los ficheros que les tocarian
++    // (Monster237.bmd a Monster239.bmd) no existen en la Data: el hueco real del paquete es 235-239.
++    //
++    // El motor ya sabe llevar un personaje sin malla, no hay que tocarlo: RenderCharacter sale solo
++    // si NumActions == 0, y MoveCharacterVisual arma la caja de seleccion desde BoundingBoxMin/Max
++    // y se va. Lo unico que hace falta es darle esa caja a mano, como ya se hace con la catapulta y
++    // la puerta del Castle Siege (GMBattleCastle.cpp, SettingBattleCastleMonsterLinkBone).
++    //
++    // Sin esta rama caerian en el switch de CreateMonster, cuyo default las convierte en Bull
++    // Fighter, que es exactamente lo que le pasaba a los NPC de Acheron antes del parche 16.
++    if (TipoInt >= PANDORA_ZONE_SMALL && TipoInt <= PANDORA_ZONE_LARGE)
++    {
++        const int ZonaIndex = static_cast<int>(MODEL_MONSTER01) + PANDORA_ZONE_MODEL_INDEX;
++        c = CreateCharacter(Key, ZonaIndex, PositionX, PositionY);
++        if (c != NULL)
++        {
++            // Caja plana, mas ancha cuanto mayor la zona: azul, morada, dorada. Sin caja no se
++            // puede clicar, porque la seleccion se resuelve contra el OBB y no contra la malla.
++            const float Ancho = 60.f + (TipoInt - PANDORA_ZONE_SMALL) * 30.f;
++            Vector(-Ancho, -Ancho, 0.f, c->Object.BoundingBoxMin);
++            Vector(Ancho, Ancho, 80.f, c->Object.BoundingBoxMax);
++            c->Object.Scale = 1.0f;
++        }
++        else
++        {
++            g_ErrorReport.Write(L"Season 8: no se pudo crear la zona de mineria tipo %d\r\n", TipoInt);
++        }
++
++        return c;
++    }
++
+     // Los NPC de Acheron tienen modelo propio por nombre, en Data\\Npc\\Akeron\\ y Data\\Npc\\.
+     int AcheronNpc = 0;
+     switch (TipoInt)
+diff --git a/src/source/Engine/Object/ZzzInterface.cpp b/src/source/Engine/Object/ZzzInterface.cpp
+index ed977b7..f05d28b 100644
+--- a/src/source/Engine/Object/ZzzInterface.cpp
++++ b/src/source/Engine/Object/ZzzInterface.cpp
+@@ -1544,6 +1544,26 @@ void Action(CHARACTER* c, OBJECT* o, bool Now)
+ 			const int npcIndex = 205;
+ 			const int monsterIndex = CharactersClient[TargetNpc].MonsterIndex;
+ 
++			// Season 8: veta de mineria de la Jewel of Pandora.
++			//
++			// Las zonas 605 a 607 son NPC (IsForcedNpcMonsterType), asi que el clic izquierdo cae
++			// aqui y no en la ruta de ataque. Este es el unico embudo: se llegue por clic directo o
++			// despues de caminar hasta la veta, se pasa por Action() con MOVEMENT_TALK.
++			//
++			// Sin el Pandora Pick en la mano derecha no se mina, que es lo que dice la guia
++			// oficial: sin pico ni siquiera se ven los puntos. Aqui se ven, pero no hacen nada.
++			if (monsterIndex >= PANDORA_ZONE_SMALL && monsterIndex <= PANDORA_ZONE_LARGE)
++			{
++				if (CharacterMachine->Equipment[EQUIPMENT_WEAPON_RIGHT].Type != PANDORA_PICK_TYPE)
++				{
++					g_pSystemLogBox->AddText(I18N::Game::PandoraMiningNeedPick, SEASON3B::TYPE_ERROR_MESSAGE);
++					break;
++				}
++
++				SendPandoraMineRequest((WORD)CharactersClient[TargetNpc].Key, (WORD)monsterIndex);
++				break;
++			}
++
+ 			if (monsterIndex >= npcIndex)
+ 			{
+ 				const int level = CharacterAttribute->Level;
+diff --git a/src/source/Network/Server/WSclient.cpp b/src/source/Network/Server/WSclient.cpp
+index 5f2981a..fcff0f1 100644
+--- a/src/source/Network/Server/WSclient.cpp
++++ b/src/source/Network/Server/WSclient.cpp
+@@ -13446,6 +13446,235 @@ void ReceiveDarkside(const BYTE* ReceiveBuffer)
+     }
+ }
+ 
++// -----------------------------------------------------------------------------
++// Season 8: mineria Jewel of Pandora, lado del cliente.
++//
++// El servidor lleva toda la cuenta; aqui solo se manda el golpe, se contesta al cartel y se pintan
++// el numero flotante y los mensajes. El estado que se guarda es el minimo para poder contestar:
++// que veta es y en que fase va, porque el cartel no lleva esa informacion encima.
++// -----------------------------------------------------------------------------
++PandoraMiningState g_PandoraMining = { 0, 0, 0, 0, 0, false };
++
++void ResetPandoraMiningState()
++{
++    g_PandoraMining.ZoneId = 0;
++    g_PandoraMining.ZoneClass = 0;
++    g_PandoraMining.MapNumber = 0;
++    g_PandoraMining.Stage = 0;
++    g_PandoraMining.JewelCount = 0;
++    g_PandoraMining.Active = false;
++}
++
++// Este cliente no arma paquetes salientes en C++: todo pasa por la libreria .NET, que saca las
++// funciones de envio de un NuGet de OpenMU. El C1:4C es nuestro y no esta en ese paquete, asi que
++// se manda por la via cruda, que existe y esta exportada: ConnectionManager_Send. El lado
++// administrado rellena el byte de tamano con SetPacketSize antes de escribir al socket.
++static void PandoraSendRaw(const void* Packet, int Size)
++{
++    if (SocketClient == nullptr || !SocketClient->IsConnected())
++        return;
++
++    SocketClient->Send(reinterpret_cast<const BYTE*>(Packet), Size);
++}
++
++void SendPandoraMineRequest(WORD ZoneId, WORD ZoneClass)
++{
++    PMSG_PANDORA_MINE_REQ msg = {};
++    msg.h.m_Header.Code = 0xC1;
++    msg.h.m_Header.Size = sizeof(msg);
++    msg.h.m_Header.HeadCode = 0x4C;
++    msg.h.m_bySubCode = 0x00;
++
++    const WORD HeroId = (WORD)Hero->Key;
++    msg.PlayerIdH = HIBYTE(HeroId);       msg.PlayerIdL = LOBYTE(HeroId);
++    msg.ZoneIdH = HIBYTE(ZoneId);         msg.ZoneIdL = LOBYTE(ZoneId);
++    msg.ZoneClassH = HIBYTE(ZoneClass);   msg.ZoneClassL = LOBYTE(ZoneClass);
++    msg.MapNumber = (BYTE)gMapManager.WorldActive;
++
++    // Si se cambia de veta, la cadena empieza de cero.
++    if (!g_PandoraMining.Active || g_PandoraMining.ZoneId != ZoneId)
++    {
++        ResetPandoraMiningState();
++        g_PandoraMining.ZoneId = ZoneId;
++        g_PandoraMining.ZoneClass = ZoneClass;
++        g_PandoraMining.MapNumber = msg.MapNumber;
++        g_PandoraMining.Active = true;
++    }
++
++    msg.Stage = g_PandoraMining.Stage;
++
++    PandoraSendRaw(&msg, sizeof(msg));
++    g_ConsoleDebug->Write(MCD_SEND, L"0x4C:00 [SendPandoraMineRequest(zona %u clase %u fase %u)]",
++                          ZoneId, ZoneClass, msg.Stage);
++}
++
++void SendPandoraRewardRequest(bool CashOut)
++{
++    if (!g_PandoraMining.Active)
++        return;
++
++    PMSG_PANDORA_REWARD_REQ msg = {};
++    msg.h.m_Header.Code = 0xC1;
++    msg.h.m_Header.Size = sizeof(msg);
++    msg.h.m_Header.HeadCode = 0x4C;
++    msg.h.m_bySubCode = 0x01;
++
++    const WORD HeroId = (WORD)Hero->Key;
++    msg.PlayerIdH = HIBYTE(HeroId);                          msg.PlayerIdL = LOBYTE(HeroId);
++    msg.ZoneIdH = HIBYTE(g_PandoraMining.ZoneId);            msg.ZoneIdL = LOBYTE(g_PandoraMining.ZoneId);
++    msg.ZoneClassH = HIBYTE(g_PandoraMining.ZoneClass);      msg.ZoneClassL = LOBYTE(g_PandoraMining.ZoneClass);
++    msg.MapNumber = g_PandoraMining.MapNumber;
++    msg.Stage = g_PandoraMining.Stage;
++    msg.CashOut = CashOut ? 1 : 0;
++
++    PandoraSendRaw(&msg, sizeof(msg));
++    g_ConsoleDebug->Write(MCD_SEND, L"0x4C:01 [SendPandoraRewardRequest(cobrar %d)]", msg.CashOut);
++}
++
++void SendPandoraEndRequest()
++{
++    if (!g_PandoraMining.Active)
++        return;
++
++    PMSG_PANDORA_END_REQ msg = {};
++    msg.h.m_Header.Code = 0xC1;
++    msg.h.m_Header.Size = sizeof(msg);
++    msg.h.m_Header.HeadCode = 0x4C;
++    msg.h.m_bySubCode = 0x03;
++
++    const WORD HeroId = (WORD)Hero->Key;
++    msg.PlayerIdH = HIBYTE(HeroId);                msg.PlayerIdL = LOBYTE(HeroId);
++    msg.ZoneIdH = HIBYTE(g_PandoraMining.ZoneId);  msg.ZoneIdL = LOBYTE(g_PandoraMining.ZoneId);
++    msg.MapNumber = g_PandoraMining.MapNumber;
++
++    PandoraSendRaw(&msg, sizeof(msg));
++    g_ConsoleDebug->Write(MCD_SEND, L"0x4C:03 [SendPandoraEndRequest()]");
++    ResetPandoraMiningState();
++}
++
++// El numero amarillo flotante sobre la veta. Es la misma funcion que pinta los numeros de dano.
++static void PandoraShowJewelCount(WORD ZoneId, int JewelCount)
++{
++    if (JewelCount <= 0)
++        return;
++
++    const int Index = FindCharacterIndex(ZoneId);
++    if (Index < 0 || Index >= MAX_CHARACTERS_CLIENT)
++        return;
++
++    vec3_t Color;
++    Vector(1.f, 1.f, 0.2f, Color);
++    CreatePoint(CharactersClient[Index].Object.Position, JewelCount, Color, 25.f, true, false);
++}
++
++static void PandoraShowResultMessage(uint32_t Result)
++{
++    const wchar_t* Texto = nullptr;
++    SEASON3B::MESSAGE_TYPE Tipo = SEASON3B::TYPE_ERROR_MESSAGE;
++
++    switch (Result)
++    {
++    case PANDORA_RESULT_OK:
++        Texto = I18N::Game::PandoraMiningSuccess;
++        Tipo = SEASON3B::TYPE_SYSTEM_MESSAGE;
++        break;
++    case PANDORA_RESULT_OK_FINAL:
++        Texto = I18N::Game::PandoraMiningRewardReceived;
++        Tipo = SEASON3B::TYPE_SYSTEM_MESSAGE;
++        break;
++    case PANDORA_RESULT_FAILED:       Texto = I18N::Game::PandoraMiningFailed; break;
++    case PANDORA_RESULT_IN_USE:       Texto = I18N::Game::PandoraMiningZoneInUse; break;
++    case PANDORA_RESULT_TRANSFORMED:  Texto = I18N::Game::PandoraMiningTransformed; break;
++    case PANDORA_RESULT_NO_SPACE:     Texto = I18N::Game::PandoraMiningNoSpace; break;
++    case PANDORA_RESULT_BUSY:         Texto = I18N::Game::PandoraMiningBusy; break;
++    case PANDORA_RESULT_STORE:        Texto = I18N::Game::PandoraMiningPrivateStore; break;
++    case PANDORA_RESULT_NO_PICK:      Texto = I18N::Game::PandoraMiningNoDurability; break;
++    case PANDORA_RESULT_MISMATCH:     Texto = nullptr; break;   // antitrampas: no se le dice nada
++    default:                          Texto = nullptr; break;
++    }
++
++    if (Texto != nullptr)
++        g_pSystemLogBox->AddText(Texto, Tipo);
++}
++
++// GC[0xC1][0x4C][0x00]
++void ReceivePandoraMineResult(std::span<const BYTE> ReceiveBuffer)
++{
++    auto Data = safe_cast<PMSG_PANDORA_MINE_ANS>(ReceiveBuffer, "PandoraMineResult");
++    if (Data == nullptr)
++        return;
++
++    const WORD ZoneId = ((WORD)Data->ZoneIdH << 8) + Data->ZoneIdL;
++    const WORD ZoneClass = ((WORD)Data->ZoneClassH << 8) + Data->ZoneClassL;
++    const uint32_t JewelCount = PandoraReadUInt32(Data->JewelCount);
++    const uint32_t Result = PandoraReadUInt32(Data->Result);
++
++    g_ConsoleDebug->Write(MCD_RECEIVE, L"0x4C:00 [PandoraMineResult(zona %u fase %u joyas %u res %u)]",
++                          ZoneId, Data->Stage, JewelCount, Result);
++
++    PandoraShowResultMessage(Result);
++
++    if (Result == PANDORA_RESULT_OK || Result == PANDORA_RESULT_OK_FINAL)
++    {
++        g_PandoraMining.ZoneId = ZoneId;
++        g_PandoraMining.ZoneClass = ZoneClass;
++        g_PandoraMining.MapNumber = Data->MapNumber;
++        g_PandoraMining.Stage = Data->Stage;
++        g_PandoraMining.JewelCount = (int)JewelCount;
++        g_PandoraMining.Active = true;
++
++        PandoraShowJewelCount(ZoneId, (int)JewelCount);
++    }
++
++    if (Result == PANDORA_RESULT_OK)
++    {
++        // Fases 1 a 4: el jugador elige entre cobrar y seguir.
++        SEASON3B::CNewUICommonMessageBox* pMsgBox = nullptr;
++        SEASON3B::CreateMessageBox(MSGBOX_LAYOUT_CLASS(SEASON3B::CPandoraMiningMsgBoxLayout), &pMsgBox);
++        if (pMsgBox != nullptr)
++        {
++            wchar_t texto[160];
++            mu_swprintf(texto, I18N::Game::PandoraMiningJewelsSoFar, (int)JewelCount);
++            pMsgBox->AddMsg(texto, RGBA(255, 255, 255, 255), SEASON3B::MSGBOX_FONT_BOLD);
++            pMsgBox->AddMsg(L" ");
++            pMsgBox->AddMsg(I18N::Game::PandoraMiningPickUpQuestion, RGBA(255, 255, 255, 255),
++                            SEASON3B::MSGBOX_FONT_NORMAL);
++        }
++    }
++    else if (Result != PANDORA_RESULT_OK_FINAL)
++    {
++        // Cualquier otro resultado corta la cadena; la fase 5 la cierra el propio servidor.
++        ResetPandoraMiningState();
++    }
++    else
++    {
++        ResetPandoraMiningState();
++    }
++}
++
++// GC[0xC1][0x4C][0x01]
++void ReceivePandoraRewardResult(std::span<const BYTE> ReceiveBuffer)
++{
++    auto Data = safe_cast<PMSG_PANDORA_REWARD_ANS>(ReceiveBuffer, "PandoraRewardResult");
++    if (Data == nullptr)
++        return;
++
++    const uint32_t Result = PandoraReadUInt32(Data->Result);
++    g_ConsoleDebug->Write(MCD_RECEIVE, L"0x4C:01 [PandoraRewardResult(res %u)]", Result);
++
++    if (Result == PANDORA_RESULT_OK)
++    {
++        g_pSystemLogBox->AddText(I18N::Game::PandoraMiningRewardReceived, SEASON3B::TYPE_SYSTEM_MESSAGE);
++        ResetPandoraMiningState();
++    }
++    else
++    {
++        PandoraShowResultMessage(Result);
++        if (Result != PANDORA_RESULT_NO_SPACE)
++            ResetPandoraMiningState();
++    }
++}
++
+ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
+ {
+     auto received_span = std::span<const BYTE>(ReceiveBuffer, Size);
+@@ -14955,6 +15184,31 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
+     case 0x4B:
+         ReceiveDarkside(ReceiveBuffer);
+         break;
++    // Season 8: mineria Jewel of Pandora.
++    case 0x4C:
++    {
++        int subcode;
++        if (bIsC1C3)
++        {
++            auto Data = (LPPHEADER_DEFAULT_SUBCODE)ReceiveBuffer;
++            subcode = Data->SubCode;
++        }
++        else
++        {
++            auto Data = (LPPHEADER_DEFAULT_SUBCODE_WORD)ReceiveBuffer;
++            subcode = Data->SubCode;
++        }
++        switch (subcode)
++        {
++        case 0x00:
++            ReceivePandoraMineResult(received_span);
++            break;
++        case 0x01:
++            ReceivePandoraRewardResult(received_span);
++            break;
++        }
++    }
++    break;
+     case 0xAE:
+         // Received mu helper config from server
+         ReceiveMuHelperConfigurationData(received_span);
+diff --git a/src/source/Network/Server/WSclient.h b/src/source/Network/Server/WSclient.h
+index 6620a55..f6e90ef 100644
+--- a/src/source/Network/Server/WSclient.h
++++ b/src/source/Network/Server/WSclient.h
+@@ -3704,6 +3704,123 @@ typedef struct
+ } PRECEIVE_MUHELPER_STATUS, * LPRECEIVE_MUHELPER_STATUS;
+ #pragma pack(pop)
+ 
++// -----------------------------------------------------------------------------
++// Season 8: mineria Jewel of Pandora, cabecera C1 / 0x4C.
++//
++// Mismos campos y mismos tamanos que las estructuras del cliente original del S8 (12, 13 y 9 bytes
++// de ida; 20 y 16 de vuelta), para que el protocolo sea el de verdad y no uno nuestro.
++// Los numeros de mas de un byte van en big endian, que es lo que manda el protocolo de MU y lo que
++// hace el resto de este fichero: se declaran como bytes sueltos y se componen a mano.
++// -----------------------------------------------------------------------------
++#pragma pack(push, 1)
++
++// CG[0xC1][0x4C][0x00]  golpe de mineria
++typedef struct
++{
++    PBMSG_HEADER2 h;
++    BYTE PlayerIdH;    BYTE PlayerIdL;
++    BYTE ZoneIdH;      BYTE ZoneIdL;
++    BYTE ZoneClassH;   BYTE ZoneClassL;
++    BYTE MapNumber;
++    BYTE Stage;
++} PMSG_PANDORA_MINE_REQ, * LPPMSG_PANDORA_MINE_REQ;
++
++// CG[0xC1][0x4C][0x01]  respuesta al cartel: cobrar o seguir
++typedef struct
++{
++    PBMSG_HEADER2 h;
++    BYTE PlayerIdH;    BYTE PlayerIdL;
++    BYTE ZoneIdH;      BYTE ZoneIdL;
++    BYTE ZoneClassH;   BYTE ZoneClassL;
++    BYTE MapNumber;
++    BYTE Stage;
++    BYTE CashOut;
++} PMSG_PANDORA_REWARD_REQ, * LPPMSG_PANDORA_REWARD_REQ;
++
++// CG[0xC1][0x4C][0x03]  el jugador abandona la veta
++typedef struct
++{
++    PBMSG_HEADER2 h;
++    BYTE PlayerIdH;    BYTE PlayerIdL;
++    BYTE ZoneIdH;      BYTE ZoneIdL;
++    BYTE MapNumber;
++} PMSG_PANDORA_END_REQ, * LPPMSG_PANDORA_END_REQ;
++
++// GC[0xC1][0x4C][0x00]  resultado del golpe
++typedef struct
++{
++    PBMSG_HEADER2 h;
++    BYTE PlayerIdH;    BYTE PlayerIdL;
++    BYTE ZoneIdH;      BYTE ZoneIdL;
++    BYTE ZoneClassH;   BYTE ZoneClassL;
++    BYTE MapNumber;
++    BYTE Stage;
++    BYTE JewelCount[4];
++    BYTE Result[4];
++} PMSG_PANDORA_MINE_ANS, * LPPMSG_PANDORA_MINE_ANS;
++
++// GC[0xC1][0x4C][0x01]  resultado del cobro
++typedef struct
++{
++    PBMSG_HEADER2 h;
++    BYTE PlayerIdH;    BYTE PlayerIdL;
++    BYTE ZoneIdH;      BYTE ZoneIdL;
++    BYTE ZoneClassH;   BYTE ZoneClassL;
++    BYTE MapNumber;
++    BYTE Stage;
++    BYTE Result[4];
++} PMSG_PANDORA_REWARD_ANS, * LPPMSG_PANDORA_REWARD_ANS;
++
++#pragma pack(pop)
++
++// Los tamanos son los del S8, y si alguien mueve un campo la compilacion lo dice aqui y no en juego.
++static_assert(sizeof(PMSG_PANDORA_MINE_REQ) == 12, "PMSG_PANDORA_MINE_REQ debe medir 12 bytes");
++static_assert(sizeof(PMSG_PANDORA_REWARD_REQ) == 13, "PMSG_PANDORA_REWARD_REQ debe medir 13 bytes");
++static_assert(sizeof(PMSG_PANDORA_END_REQ) == 9, "PMSG_PANDORA_END_REQ debe medir 9 bytes");
++static_assert(sizeof(PMSG_PANDORA_MINE_ANS) == 20, "PMSG_PANDORA_MINE_ANS debe medir 20 bytes");
++static_assert(sizeof(PMSG_PANDORA_REWARD_ANS) == 16, "PMSG_PANDORA_REWARD_ANS debe medir 16 bytes");
++
++// Codigos de iResult. Son los del cliente original del S8: sus cadenas mapean uno a uno con ellos.
++enum EPandoraMiningResult
++{
++    PANDORA_RESULT_OK = 0,             // acierto de fase 1 a 4, se abre el cartel
++    PANDORA_RESULT_OK_FINAL = 1,       // acierto de la fase 5, se cobra solo
++    PANDORA_RESULT_FAILED = 2,         // fallo: se pierde todo lo acumulado
++    PANDORA_RESULT_IN_USE = 3,         // la veta la esta usando otro
++    PANDORA_RESULT_TRANSFORMED = 10,   // estas transformado
++    PANDORA_RESULT_NO_SPACE = 11,      // no caben las joyas en el inventario
++    PANDORA_RESULT_BUSY = 12,          // comerciando o comprando
++    PANDORA_RESULT_STORE = 13,         // tienda personal abierta
++    PANDORA_RESULT_MISMATCH = 17,      // la fase o la veta no cuadran con el servidor
++    PANDORA_RESULT_NO_PICK = 18,       // sin pico, o sin durabilidad suficiente
++};
++
++// Estado de la cadena de mineria en la que esta el jugador ahora mismo. Vive solo mientras dura la
++// cadena; el servidor manda la fase en cada respuesta, asi que esto es solo para poder contestar al
++// cartel y para saber a que veta se refiere.
++struct PandoraMiningState
++{
++    WORD ZoneId;
++    WORD ZoneClass;
++    BYTE MapNumber;
++    BYTE Stage;
++    int  JewelCount;
++    bool Active;
++};
++
++extern PandoraMiningState g_PandoraMining;
++
++void SendPandoraMineRequest(WORD ZoneId, WORD ZoneClass);
++void SendPandoraRewardRequest(bool CashOut);
++void SendPandoraEndRequest();
++void ResetPandoraMiningState();
++
++// Lee un entero de 4 bytes en big endian, que es como viajan en este protocolo.
++inline uint32_t PandoraReadUInt32(const BYTE* p)
++{
++    return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | (uint32_t)p[3];
++}
++
+ // Generated static_assert size guards. Sourced from OpenMU's authoritative
+ // packet XML via tools/gen_wire_sizes.py. Must appear after all packet struct
+ // declarations so the asserts can see them.
+diff --git a/src/source/UI/NewUI/Dialogs/NewUICommonMessageBox.cpp b/src/source/UI/NewUI/Dialogs/NewUICommonMessageBox.cpp
+index c720291..5613328 100644
+--- a/src/source/UI/NewUI/Dialogs/NewUICommonMessageBox.cpp
++++ b/src/source/UI/NewUI/Dialogs/NewUICommonMessageBox.cpp
+@@ -2391,6 +2391,50 @@ CALLBACK_RESULT SEASON3B::CQuestGiveUpMsgBoxLayout::CancelBtnDown(class CNewUIMe
+     return CALLBACK_BREAK;
+ }
+ 
++// -----------------------------------------------------------------------------
++// Season 8: cartel de la mineria Jewel of Pandora.
++//
++// Es el cartel de OK/Cancelar de siempre, no uno nuevo: los rotulos de los botones son texturas y
++// no se pueden cambiar sin escribir una clase entera aparte, asi que el significado va en el texto
++// del cuerpo, que lo pone quien abre el cartel porque lleva el numero de joyas del servidor.
++// Escape cuenta como cancelar, o sea seguir minando, que es la opcion que no pierde nada.
++// -----------------------------------------------------------------------------
++bool SEASON3B::CPandoraMiningMsgBoxLayout::SetLayout()
++{
++    CNewUICommonMessageBox* pMsgBox = GetMsgBox();
++    if (0 == pMsgBox)
++        return false;
++    if (false == pMsgBox->Create(MSGBOX_COMMON_TYPE_OKCANCEL))
++        return false;
++
++    pMsgBox->AddCallbackFunc(CPandoraMiningMsgBoxLayout::OkBtnDown, MSGBOX_EVENT_USER_COMMON_OK);
++    pMsgBox->AddCallbackFunc(CPandoraMiningMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_USER_COMMON_CANCEL);
++
++    pMsgBox->AddCallbackFunc(CPandoraMiningMsgBoxLayout::OkBtnDown, MSGBOX_EVENT_PRESSKEY_RETURN);
++    pMsgBox->AddCallbackFunc(CPandoraMiningMsgBoxLayout::CancelBtnDown, MSGBOX_EVENT_PRESSKEY_ESC);
++    return true;
++}
++
++CALLBACK_RESULT SEASON3B::CPandoraMiningMsgBoxLayout::OkBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
++{
++    SendPandoraRewardRequest(true);
++
++    PlayBuffer(SOUND_CLICK01);
++    g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
++
++    return CALLBACK_BREAK;
++}
++
++CALLBACK_RESULT SEASON3B::CPandoraMiningMsgBoxLayout::CancelBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
++{
++    SendPandoraRewardRequest(false);
++
++    PlayBuffer(SOUND_CLICK01);
++    g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);
++
++    return CALLBACK_BREAK;
++}
++
+ #ifdef ASG_ADD_TIME_LIMIT_QUEST
+ bool SEASON3B::CQuestCountLimitMsgBoxLayout::SetLayout()
+ {
+diff --git a/src/source/UI/NewUI/Dialogs/NewUICommonMessageBox.h b/src/source/UI/NewUI/Dialogs/NewUICommonMessageBox.h
+index 4b11f25..d505df2 100644
+--- a/src/source/UI/NewUI/Dialogs/NewUICommonMessageBox.h
++++ b/src/source/UI/NewUI/Dialogs/NewUICommonMessageBox.h
+@@ -531,6 +531,17 @@ namespace SEASON3B
+         static CALLBACK_RESULT CancelBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
+     };
+ 
++    // Season 8: el cartel de la mineria Jewel of Pandora. Aceptar cobra las joyas acumuladas;
++    // cancelar sigue minando y se las juega en la fase siguiente. El texto lo pone quien lo abre,
++    // porque lleva el numero de joyas que manda el servidor en cada respuesta.
++    class CPandoraMiningMsgBoxLayout : public TMsgBoxLayout<CNewUICommonMessageBox>
++    {
++    public:
++        bool SetLayout();
++        static CALLBACK_RESULT OkBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
++        static CALLBACK_RESULT CancelBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam);
++    };
++
+ #ifdef ASG_ADD_TIME_LIMIT_QUEST
+     class CQuestCountLimitMsgBoxLayout : public TMsgBoxLayout<CNewUICommonMessageBox>
+     {

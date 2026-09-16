@@ -1,4 +1,4 @@
-name: Cliente Mac de prueba con contenido S8 (parches 1 a 18)
+name: Cliente Mac de prueba con contenido S8 (parches 1 a 19)
 
 # Rama de prueba: NO publica release y NO toca los clientes de los jugadores.
 # Solo compila el runtime de Mac y lo deja como artefacto para probarlo a mano.
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-macos:
-    name: macOS arm64 Release (editor OFF) con parches 1 a 12
+    name: macOS arm64 Release (editor OFF) con parches 1 a 19
     runs-on: macos-latest
 
     steps:
@@ -53,7 +53,41 @@ jobs:
           git apply ../receta/parche-17-diagnostico-mallas.patch
           git apply --check ../receta/parche-18-animacion-y-npc.patch
           git apply ../receta/parche-18-animacion-y-npc.patch
+          git apply --check ../receta/parche-19-mineria.patch
+          git apply ../receta/parche-19-mineria.patch
           git diff --stat
+          # --- parche 19: mineria Jewel of Pandora ---
+          # el protocolo: el case en el despachador y las tres funciones de envio
+          grep -q 'case 0x4C:' src/source/Network/Server/WSclient.cpp \
+            && echo "parche 19: el cliente escucha el 0x4C" \
+            || { echo "parche 19 no aplicado (case 0x4C)" >&2; exit 1; }
+          test "$(grep -c 'void SendPandora' src/source/Network/Server/WSclient.cpp)" = "3" \
+            && echo "parche 19: las tres peticiones de mineria" \
+            || { echo "parche 19 no aplicado (envio)" >&2; exit 1; }
+          # los tamanos del protocolo son los del S8; si alguien mueve un campo, el static_assert lo dice
+          test "$(grep -c 'static_assert(sizeof(PMSG_PANDORA' src/source/Network/Server/WSclient.h)" = "5" \
+            && echo "parche 19: los 5 guardas de tamano del protocolo" \
+            || { echo "parche 19 no aplicado (static_assert)" >&2; exit 1; }
+          # las zonas son NPC y se crean sin modelo, o el switch las convierte en Bull Fighter
+          grep -q 'case 605:   // Mining Area (Small)' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 19: las zonas son NPC, no bichos" \
+            || { echo "parche 19 no aplicado (NPC)" >&2; exit 1; }
+          grep -q 'PANDORA_ZONE_MODEL_INDEX' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 19: zonas sin modelo con caja propia" \
+            || { echo "parche 19 no aplicado (sin modelo)" >&2; exit 1; }
+          grep -q 'MovePandoraMiningZone' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 19: el parpadeo de la zona" \
+            || { echo "parche 19 no aplicado (parpadeo)" >&2; exit 1; }
+          # el clic y el cartel
+          grep -q 'PANDORA_PICK_TYPE' src/source/Engine/Object/ZzzInterface.cpp \
+            && echo "parche 19: el clic exige el pico" \
+            || { echo "parche 19 no aplicado (clic)" >&2; exit 1; }
+          grep -q 'CPandoraMiningMsgBoxLayout' src/source/UI/NewUI/Dialogs/NewUICommonMessageBox.cpp \
+            && echo "parche 19: cartel de cobrar o seguir" \
+            || { echo "parche 19 no aplicado (cartel)" >&2; exit 1; }
+          test "$(grep -c 'PandoraMining' src/Localization/Game.en.resx)" -ge "12" \
+            && echo "parche 19: las 12 cadenas de la mineria" \
+            || { echo "parche 19 no aplicado (cadenas)" >&2; exit 1; }
           grep -q 'Actions\[MONSTER01_WALK\].PlaySpeed' src/source/Engine/Object/ZzzOpenData.cpp \
             && echo "parche 18: velocidad de animacion de los bichos nuevos" \
             || { echo "parche 18 no aplicado (animacion)" >&2; exit 1; }
