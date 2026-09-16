@@ -1,0 +1,193 @@
+diff --git a/src/source/Engine/Object/ZzzCharacter.cpp b/src/source/Engine/Object/ZzzCharacter.cpp
+index d9094ed..f03bf16 100644
+--- a/src/source/Engine/Object/ZzzCharacter.cpp
++++ b/src/source/Engine/Object/ZzzCharacter.cpp
+@@ -15029,6 +15029,26 @@ CHARACTER* CreateMonster(EMonsterType Type, int PositionX, int PositionY, int Ke
+ 
+     }
+ 
++    // Patch 11: monsters the client does not know by name, listed in
++    // Data\\Local\\ExtraMonsters.txt. Without this the whole viewport packet is
++    // dropped at the first unknown monster, so nothing else around it shows up.
++    if (c == NULL)
++    {
++        int ExtraModel = 0;
++        float ExtraScale = 1.0f;
++        if (GetExtraMonsterModel(static_cast<int>(Type), &ExtraModel, &ExtraScale) == true)
++        {
++            OpenMonsterModelExtra(ExtraModel);
++
++            const int ExtraIndex = static_cast<int>(MODEL_MONSTER01) + ExtraModel;
++            if (Models[ExtraIndex].NumMeshs > 0)
++            {
++                c = CreateCharacter(Key, ExtraIndex, PositionX, PositionY);
++                if (c != NULL) c->Object.Scale = ExtraScale;
++            }
++        }
++    }
++
+     Setting_Monster(c, Type, PositionX, PositionY);
+ 
+     return c;
+diff --git a/src/source/Engine/Object/ZzzOpenData.cpp b/src/source/Engine/Object/ZzzOpenData.cpp
+index 7b9857d..e2669d5 100644
+--- a/src/source/Engine/Object/ZzzOpenData.cpp
++++ b/src/source/Engine/Object/ZzzOpenData.cpp
+@@ -1248,8 +1248,141 @@ void OpenItems()
+     Models[MODEL_STAFF_OF_RESURRECTION].Meshs[2].NoneBlendMesh = true;
+     Models[MODEL_CHAOS_DRAGON_AXE].Meshs[1].NoneBlendMesh = true;
+     Models[MODEL_EVENT + 9].Meshs[1].NoneBlendMesh = true;
++
++    // Patch 11: models that come from the Data tables instead of the code
++    OpenExtraItems();
++}
++
++
++// ---------------------------------------------------------------------------
++// Patch 11: extra content tables
++//
++// The client hardcodes every model it knows, so a Data folder from a newer
++// season cannot show its own items and monsters. These two optional tables let
++// the Data folder register models without touching the code:
++//
++//   Data\\Local\\ExtraItems.txt      group index "model folder" "model file"
++//   Data\\Local\\ExtraMonsters.txt   monsterType modelIndex scale
++//
++// Everything is optional and failures are silent: a Data folder without these
++// files behaves exactly as before, and a missing model is skipped instead of
++// closing the client.
++// ---------------------------------------------------------------------------
++namespace
++{
++    // one slot per monster type: the protocol carries the type in 10 bits
++    const int EXTRA_MONSTER_MAX_TYPE = 1024;
++
++    short g_ExtraMonsterModel[EXTRA_MONSTER_MAX_TYPE];
++    float g_ExtraMonsterScale[EXTRA_MONSTER_MAX_TYPE];
++    bool g_ExtraMonstersLoaded = false;
++
++    void LoadExtraMonsterTable()
++    {
++        if (g_ExtraMonstersLoaded == true) return;
++        g_ExtraMonstersLoaded = true;
++
++        for (int i = 0; i < EXTRA_MONSTER_MAX_TYPE; ++i)
++        {
++            g_ExtraMonsterModel[i] = -1;
++            g_ExtraMonsterScale[i] = 1.0f;
++        }
++
++        FILE* fp = _wfopen(L"Data\\Local\\ExtraMonsters.txt", L"rt");
++        if (fp == NULL) return;
++
++        char Line[256];
++        int Count = 0;
++        while (fgets(Line, sizeof(Line), fp) != NULL)
++        {
++            int Type = 0, Model = 0;
++            float Scale = 1.0f;
++            if (sscanf(Line, "%d %d %f", &Type, &Model, &Scale) < 2) continue;
++            if (Type < 0 || Type >= EXTRA_MONSTER_MAX_TYPE) continue;
++            if (Model < 0 || Model >= MAX_MODEL_MONSTER) continue;
++            if (Scale <= 0.0f) Scale = 1.0f;
++
++            g_ExtraMonsterModel[Type] = (short)Model;
++            g_ExtraMonsterScale[Type] = Scale;
++            ++Count;
++        }
++        fclose(fp);
++
++        g_ErrorReport.Write(L"ExtraMonsters.txt: %d monsters\r\n", Count);
++    }
+ }
+ 
++void OpenExtraItems()
++{
++    FILE* fp = _wfopen(L"Data\\Local\\ExtraItems.txt", L"rt");
++    if (fp == NULL) return;
++
++    char Line[512];
++    int Loaded = 0;
++    while (fgets(Line, sizeof(Line), fp) != NULL)
++    {
++        int Group = 0, Index = 0;
++        char Folder[128] = { 0 }, File[128] = { 0 };
++        if (sscanf(Line, "%d %d \"%127[^\"]\" \"%127[^\"]\"", &Group, &Index, Folder, File) != 4) continue;
++        if (Group < 0 || Group >= MAX_ITEM_TYPE || Index < 0 || Index >= MAX_ITEM_INDEX) continue;
++
++        const int Model = MODEL_ITEM + Group * MAX_ITEM_INDEX + Index;
++        if (Models[Model].NumMeshs > 0) continue;   // already loaded by OpenItems()
++
++        wchar_t wFolder[128] = { 0 }, wFile[128] = { 0 };
++        mbstowcs(wFolder, Folder, 127);
++        mbstowcs(wFile, File, 127);
++
++        Models[Model].m_iBMDSeqID = Model;
++        if (Models[Model].Open2(wFolder, wFile) == false) continue;
++        if (Models[Model].NumMeshs == 0) continue;
++
++        gLoadData.OpenTexture(Model, L"Item\\");
++        ++Loaded;
++    }
++    fclose(fp);
++
++    g_ErrorReport.Write(L"ExtraItems.txt: %d models loaded\r\n", Loaded);
++}
++
++bool GetExtraMonsterModel(int MonsterType, int* ModelIndex, float* Scale)
++{
++    LoadExtraMonsterTable();
++
++    if (MonsterType < 0 || MonsterType >= EXTRA_MONSTER_MAX_TYPE) return false;
++    if (g_ExtraMonsterModel[MonsterType] < 0) return false;
++
++    if (ModelIndex != NULL) *ModelIndex = g_ExtraMonsterModel[MonsterType];
++    if (Scale != NULL) *Scale = g_ExtraMonsterScale[MonsterType];
++    return true;
++}
++
++void OpenMonsterModelExtra(int ModelIndex)
++{
++    if (ModelIndex < 0 || ModelIndex >= MAX_MODEL_MONSTER) return;
++
++    const int Index = static_cast<int>(MODEL_MONSTER01) + ModelIndex;
++    BMD* b = &Models[Index];
++    if (b->NumActions > 0 || b->NumMeshs > 0) return;
++
++    wchar_t Name[64];
++    if (ModelIndex + 1 < 10)
++        mu_swprintf(Name, L"Monster0%d.bmd", ModelIndex + 1);
++    else
++        mu_swprintf(Name, L"Monster%d.bmd", ModelIndex + 1);
++
++    b->m_iBMDSeqID = Index;
++    if (b->Open2(L"Data\\Monster\\", Name) == false)
++    {
++        g_ErrorReport.Write(L"ExtraMonsters: missing %ls\r\n", Name);
++        return;
++    }
++    if (b->NumMeshs == 0) return;
++
++    gLoadData.OpenTexture(Index, L"Monster\\");
++}
++
++
+ void OpenItemTextures()
+ {
+     for (int i = 0; i < 4; i++)
+diff --git a/src/source/Engine/Object/ZzzOpenData.h b/src/source/Engine/Object/ZzzOpenData.h
+index 5504659..7d21c1c 100644
+--- a/src/source/Engine/Object/ZzzOpenData.h
++++ b/src/source/Engine/Object/ZzzOpenData.h
+@@ -5,6 +5,11 @@ void OpenNpc(int Type);
+ void DeleteMonsters();
+ void OpenMonsterModel(EMonsterModelType Type);
+ 
++// Patch 11: extra content tables (models the client does not know by name)
++void OpenMonsterModelExtra(int ModelIndex);
++bool GetExtraMonsterModel(int MonsterType, int* ModelIndex, float* Scale);
++void OpenExtraItems();
++
+ void OpenModel(int Type, wchar_t* Dir, wchar_t* ModelFileName, ...);
+ void OpenBasicData(HDC hDC);
+ void ReleaseMainData();
