@@ -1,4 +1,4 @@
-name: Cliente Mac de prueba con contenido S8 (parches 1 a 12)
+name: Cliente Mac de prueba con contenido S8 (parches 1 a 13)
 
 # Rama de prueba: NO publica release y NO toca los clientes de los jugadores.
 # Solo compila el runtime de Mac y lo deja como artefacto para probarlo a mano.
@@ -41,7 +41,13 @@ jobs:
           git apply ../receta/parche-11-contenido-extra.patch
           git apply --check ../receta/parche-12-mapas-s8.patch
           git apply ../receta/parche-12-mapas-s8.patch
+          git apply --check ../receta/parche-13-terreno-capa2.patch
+          git apply ../receta/parche-13-terreno-capa2.patch
           git diff --stat
+          # parche 13: una celda sin segunda capa (255) ya no se pinta con una textura que no existe
+          test "$(grep -c 'TerrainMappingLayer2\[TerrainIndex1\] != 255' src/source/Render/Terrain/ZzzLodTerrain.cpp)" = "2" \
+            && echo "parche 13: guarda de la capa 2 en los dos sitios" \
+            || { echo "parche 13 no aplicado (capa 2)" >&2; exit 1; }
           # parche 12: mapas del S8 (nombre, placa, musica) y skills maestras 609-617
           grep -q 'WD_91ACHERON = 91' src/source/World/MapInfra/MapManager.h \
             && echo "parche 12: mundos del S8 en el enum" \

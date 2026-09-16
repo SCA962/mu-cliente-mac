@@ -1,0 +1,32 @@
+diff --git a/src/source/Render/Terrain/ZzzLodTerrain.cpp b/src/source/Render/Terrain/ZzzLodTerrain.cpp
+index 20cf1a8..f34fd8c 100644
+--- a/src/source/Render/Terrain/ZzzLodTerrain.cpp
++++ b/src/source/Render/Terrain/ZzzLodTerrain.cpp
+@@ -1442,7 +1442,12 @@ void RenderTerrainFace(float xf, float yf, int xi, int yi, float lodf)
+         int Texture;
+         bool Alpha;
+         bool Water = false;
+-        if (TerrainMappingAlpha[TerrainIndex1] >= 1.f && TerrainMappingAlpha[TerrainIndex2] >= 1.f && TerrainMappingAlpha[TerrainIndex3] >= 1.f && TerrainMappingAlpha[TerrainIndex4] >= 1.f)
++        // 255 en la segunda capa significa que no hay segunda capa: el camino de mezcla de mas
++        // abajo ya lo comprueba, este no lo hacia y pintaba con el indice 255, que no es ninguna
++        // textura cargada. En los mapas del S8 eso deja caminos enteros sin textura (168 celdas
++        // en Acheron, 142 en Debenter; Lorencia tiene 6). Sin segunda capa, manda la primera.
++        if (TerrainMappingLayer2[TerrainIndex1] != 255
++            && TerrainMappingAlpha[TerrainIndex1] >= 1.f && TerrainMappingAlpha[TerrainIndex2] >= 1.f && TerrainMappingAlpha[TerrainIndex3] >= 1.f && TerrainMappingAlpha[TerrainIndex4] >= 1.f)
+         {
+             Texture = TerrainMappingLayer2[TerrainIndex1];
+             Alpha = false;
+@@ -1562,7 +1567,12 @@ void RenderTerrainFace_After(float xf, float yf, int xi, int yi, float lodf)
+     {
+         int Texture;
+         int Water = 0;
+-        if (TerrainMappingAlpha[TerrainIndex1] >= 1.f && TerrainMappingAlpha[TerrainIndex2] >= 1.f && TerrainMappingAlpha[TerrainIndex3] >= 1.f && TerrainMappingAlpha[TerrainIndex4] >= 1.f)
++        // 255 en la segunda capa significa que no hay segunda capa: el camino de mezcla de mas
++        // abajo ya lo comprueba, este no lo hacia y pintaba con el indice 255, que no es ninguna
++        // textura cargada. En los mapas del S8 eso deja caminos enteros sin textura (168 celdas
++        // en Acheron, 142 en Debenter; Lorencia tiene 6). Sin segunda capa, manda la primera.
++        if (TerrainMappingLayer2[TerrainIndex1] != 255
++            && TerrainMappingAlpha[TerrainIndex1] >= 1.f && TerrainMappingAlpha[TerrainIndex2] >= 1.f && TerrainMappingAlpha[TerrainIndex3] >= 1.f && TerrainMappingAlpha[TerrainIndex4] >= 1.f)
+         {
+             Texture = TerrainMappingLayer2[TerrainIndex1];
+         }
