@@ -1,4 +1,4 @@
-name: Cliente Mac de prueba con contenido S8 (parches 1 a 16)
+name: Cliente Mac de prueba con contenido S8 (parches 1 a 17)
 
 # Rama de prueba: NO publica release y NO toca los clientes de los jugadores.
 # Solo compila el runtime de Mac y lo deja como artefacto para probarlo a mano.
@@ -49,7 +49,12 @@ jobs:
           git apply ../receta/parche-15-diagnostico.patch
           git apply --check ../receta/parche-16-antes-del-toro.patch
           git apply ../receta/parche-16-antes-del-toro.patch
+          git apply --check ../receta/parche-17-diagnostico-mallas.patch
+          git apply ../receta/parche-17-diagnostico-mallas.patch
           git diff --stat
+          grep -q 'Diagnostico malla' src/source/Render/Models/ZzzBMD.cpp \
+            && echo "parche 17: diagnostico de mallas sin textura" \
+            || { echo "parche 17 no aplicado" >&2; exit 1; }
           # parche 16: el respaldo del S8 va ANTES del switch que termina en Bull Fighter
           grep -q 'CreateSeason8Character' src/source/Engine/Object/ZzzCharacter.cpp \
             && echo "parche 16: respaldo del S8 antes del switch" \

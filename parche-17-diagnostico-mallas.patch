@@ -1,0 +1,23 @@
+--- a/src/source/Render/Models/ZzzBMD.cpp
++++ b/src/source/Render/Models/ZzzBMD.cpp
+@@ -1308,6 +1308,20 @@
+     if (textureIndex == BITMAP_HIDE)
+     {
+         return;
++    }
++
++    // Diagnostico (16-09): una malla cuya textura no se cargo se dibuja plana y clara, que es lo
++    // que se ve en Acheron como superficies grises. Se anotan las 30 primeras, con el fichero que
++    // el modelo pedia, para poder identificarlas sin adivinar.
++    {
++        static int s_AvisosMalla = 0;
++        if (s_AvisosMalla < 30 && Bitmaps.FindTexture(textureIndex) == NULL)
++        {
++            s_AvisosMalla++;
++            g_ErrorReport.Write(L"Diagnostico malla: modelo %d, malla %d, textura %d ('%hs') sin cargar\r\n",
++                                (int)m_iBMDSeqID, meshIndex, textureIndex,
++                                (Textures != NULL) ? Textures[m->Texture].FileName : "?");
++        }
+     }
+ 
+     if (textureIndex == BITMAP_WATER)
