@@ -1,0 +1,149 @@
+--- a/src/source/Engine/Object/ZzzCharacter.cpp
++++ b/src/source/Engine/Object/ZzzCharacter.cpp
+@@ -13177,7 +13177,78 @@
+         o->Kind = DetermineMonsterObjectKind(Type);
+     }
+ }
++
++// Season 8: los bichos y NPC que este cliente no conoce por nombre.
++//
++// Esto TIENE que correr antes del switch de CreateMonster. Ese switch termina en
++// `case MONSTER_BULL_FIGHTER: ... default:`, o sea que **cualquier tipo desconocido sale como un
++// Bull Fighter** y deja c distinto de NULL, asi que los respaldos que estaban despues del switch
++// (la tabla del parche 11 y los modelos de NPC del parche 14) no llegaban a ejecutarse nunca.
++// Comprobado con el diagnostico del parche 15 en la prueba del 16-09: los tipos 581, 582, 583,
++// 589, 590 y 591 salian todos con el modelo 644, que es MODEL_BULL_FIGHTER.
++static CHARACTER* CreateSeason8Character(EMonsterType Type, int PositionX, int PositionY, int Key)
++{
++    CHARACTER* c = NULL;
++    const int TipoInt = static_cast<int>(Type);
++
++    // Los NPC de Acheron tienen modelo propio por nombre, en Data\\Npc\\Akeron\\ y Data\\Npc\\.
++    int AcheronNpc = 0;
++    switch (TipoInt)
++    {
++    case 580: AcheronNpc = MODEL_ACHERON_NPC_SLOPE; break;
++    case 581: AcheronNpc = MODEL_ACHERON_NPC_DERUVISH; break;
++    case 582: AcheronNpc = MODEL_ACHERON_NPC_ADNIEL; break;
++    case 583: AcheronNpc = MODEL_ACHERON_NPC_JINN; break;
++    case 584: AcheronNpc = MODEL_ACHERON_NPC_LESNAR; break;
++    default: break;
++    }
++
++    if (AcheronNpc != 0)
++    {
++        OpenNpc(AcheronNpc);
++        if (Models[AcheronNpc].NumMeshs > 0)
++        {
++            c = CreateCharacter(Key, AcheronNpc, PositionX, PositionY);
++            if (c != NULL)
++            {
++                c->Object.Kind = KIND_NPC;
++                c->Object.Scale = 1.0f;
++                g_ErrorReport.Write(L"Season 8: NPC tipo %d con su modelo propio %d\r\n", TipoInt, AcheronNpc);
++            }
++        }
++        else
++        {
++            g_ErrorReport.Write(L"Season 8: el modelo del NPC tipo %d no cargo\r\n", TipoInt);
++        }
+ 
++        return c;
++    }
++
++    // El resto sale de Data\\Local\\ExtraMonsters.txt (parche 11).
++    int ExtraModel = 0;
++    float ExtraScale = 1.0f;
++    if (GetExtraMonsterModel(TipoInt, &ExtraModel, &ExtraScale) == true)
++    {
++        OpenMonsterModelExtra(ExtraModel);
++
++        const int ExtraIndex = static_cast<int>(MODEL_MONSTER01) + ExtraModel;
++        if (Models[ExtraIndex].NumMeshs > 0)
++        {
++            c = CreateCharacter(Key, ExtraIndex, PositionX, PositionY);
++            if (c != NULL)
++            {
++                c->Object.Scale = ExtraScale;
++            }
++        }
++        else
++        {
++            g_ErrorReport.Write(L"Season 8: el modelo %d del bicho tipo %d no tiene mallas\r\n", ExtraModel, TipoInt);
++        }
++    }
++
++    return c;
++}
++
+ CHARACTER* CreateMonster(EMonsterType Type, int PositionX, int PositionY, int Key)
+ {
+     CHARACTER* c = NULL;
+@@ -13288,6 +13359,13 @@
+         return c;
+     }
+ 
++    c = CreateSeason8Character(Type, PositionX, PositionY, Key);
++    if (c != NULL)
++    {
++        Setting_Monster(c, Type, PositionX, PositionY);
++        return c;
++    }
++
+     c = TheMapProcess().CreateMonster(Type, PositionX, PositionY, Key);
+     if (c != NULL)
+     {
+@@ -15032,53 +15110,6 @@
+     // Patch 11: monsters the client does not know by name, listed in
+     // Data\\Local\\ExtraMonsters.txt. Without this the whole viewport packet is
+     // dropped at the first unknown monster, so nothing else around it shows up.
+-    // Season 8: los NPC de Acheron no son bichos, tienen modelo propio por nombre. Sin esto caian
+-    // en la tabla de bichos del parche 11 y salian con la figura del Monster que tocara por numero.
+-    if (c == NULL)
+-    {
+-        int AcheronNpc = 0;
+-        switch (static_cast<int>(Type))
+-        {
+-        case 580: AcheronNpc = MODEL_ACHERON_NPC_SLOPE; break;
+-        case 581: AcheronNpc = MODEL_ACHERON_NPC_DERUVISH; break;
+-        case 582: AcheronNpc = MODEL_ACHERON_NPC_ADNIEL; break;
+-        case 583: AcheronNpc = MODEL_ACHERON_NPC_JINN; break;
+-        case 584: AcheronNpc = MODEL_ACHERON_NPC_LESNAR; break;
+-        default: break;
+-        }
+-
+-        if (AcheronNpc != 0)
+-        {
+-            OpenNpc(AcheronNpc);
+-            if (Models[AcheronNpc].NumMeshs > 0)
+-            {
+-                c = CreateCharacter(Key, AcheronNpc, PositionX, PositionY);
+-                if (c != NULL)
+-                {
+-                    c->Object.Kind = KIND_NPC;
+-                    c->Object.Scale = 1.0f;
+-                }
+-            }
+-        }
+-    }
+-
+-    if (c == NULL)
+-    {
+-        int ExtraModel = 0;
+-        float ExtraScale = 1.0f;
+-        if (GetExtraMonsterModel(static_cast<int>(Type), &ExtraModel, &ExtraScale) == true)
+-        {
+-            OpenMonsterModelExtra(ExtraModel);
+-
+-            const int ExtraIndex = static_cast<int>(MODEL_MONSTER01) + ExtraModel;
+-            if (Models[ExtraIndex].NumMeshs > 0)
+-            {
+-                c = CreateCharacter(Key, ExtraIndex, PositionX, PositionY);
+-                if (c != NULL) c->Object.Scale = ExtraScale;
+-            }
+-        }
+-    }
+-
+     // Diagnostico (16-09): una linea por tipo distinto, para saber si el cliente lo reconocio y con
+     // que modelo se quedo.
+     {
