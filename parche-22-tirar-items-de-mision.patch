@@ -1,0 +1,24 @@
+diff --git a/src/source/Engine/Object/ZzzInventory.cpp b/src/source/Engine/Object/ZzzInventory.cpp
+index f2806f6..ffa37aa 100644
+--- a/src/source/Engine/Object/ZzzInventory.cpp
++++ b/src/source/Engine/Object/ZzzInventory.cpp
+@@ -7379,8 +7379,17 @@ bool IsDropBan(ITEM* pItem)
+         return false;
+     }
+ 
+-    if ((pItem->Type >= ITEM_SCROLL_OF_EMPEROR_RING_OF_HONOR && pItem->Type <= ITEM_SOUL_SHARD_OF_WIZARD)
+-        || (pItem->Type >= ITEM_FLAME_OF_DEATH_BEAM_KNIGHT && pItem->Type <= ITEM_EYE_OF_ABYSSAL)
++    // Los cuatro items de mision (Scroll of Emperor / Ring of Honor, Broken Sword / Dark Stone,
++    // Tear of Elf y Soul Shard of Wizard, o sea grupo 14 numeros 23 a 26) SE PUEDEN TIRAR.
++    // Aqui estaban prohibidos, y como en este servidor se venden en la tienda de Amy, quien los
++    // compra por error se queda con ellos para siempre: no se pueden vender (el servidor lo impide
++    // en SellItemToNpcAction), ni transferir (MoveItemAction), ni tirar (esta linea). Habia que
++    // borrarlos a mano en la base, y ya iba la cuarta vez.
++    // El servidor NO impide tirarlos: DropItemAction solo mira IsBoundToCharacter para decidir de
++    // quien es el item en el suelo. Y como siguen siendo ligados, al tirarlos solo su dueno puede
++    // recogerlos (DroppedItem.cs:127), asi que no se le regalan a nadie.
++    // Pedido por Stefano el 17-09-2026.
++    if ((pItem->Type >= ITEM_FLAME_OF_DEATH_BEAM_KNIGHT && pItem->Type <= ITEM_EYE_OF_ABYSSAL)
+         || IsPartChargeItem(pItem)
+         || ((pItem->Type >= ITEM_TYPE_CHARM_MIXWING + EWS_BEGIN)
+             && (pItem->Type <= ITEM_TYPE_CHARM_MIXWING + EWS_END))
