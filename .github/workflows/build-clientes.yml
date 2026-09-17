@@ -41,6 +41,26 @@ jobs:
           echo "commit base: $(git rev-parse HEAD)"
           git apply --check ../receta/cliente-mac-parches.patch
           git apply ../receta/cliente-mac-parches.patch
+          git apply --check ../receta/parche-11-contenido-extra.patch
+          git apply ../receta/parche-11-contenido-extra.patch
+          git apply --check ../receta/parche-12-mapas-s8.patch
+          git apply ../receta/parche-12-mapas-s8.patch
+          git apply --check ../receta/parche-13-terreno-capa2.patch
+          git apply ../receta/parche-13-terreno-capa2.patch
+          git apply --check ../receta/parche-14-npc-y-textura.patch
+          git apply ../receta/parche-14-npc-y-textura.patch
+          git apply --check ../receta/parche-15-diagnostico.patch
+          git apply ../receta/parche-15-diagnostico.patch
+          git apply --check ../receta/parche-16-antes-del-toro.patch
+          git apply ../receta/parche-16-antes-del-toro.patch
+          git apply --check ../receta/parche-17-diagnostico-mallas.patch
+          git apply ../receta/parche-17-diagnostico-mallas.patch
+          git apply --check ../receta/parche-18-animacion-y-npc.patch
+          git apply ../receta/parche-18-animacion-y-npc.patch
+          git apply --check ../receta/parche-19-mineria.patch
+          git apply ../receta/parche-19-mineria.patch
+          git apply --check ../receta/parche-20-jin-mapa-92.patch
+          git apply ../receta/parche-20-jin-mapa-92.patch
           git diff --stat
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"
@@ -168,6 +188,26 @@ jobs:
           echo "commit base: $(git rev-parse HEAD)"
           git apply --check ../receta/cliente-mac-parches.patch
           git apply ../receta/cliente-mac-parches.patch
+          git apply --check ../receta/parche-11-contenido-extra.patch
+          git apply ../receta/parche-11-contenido-extra.patch
+          git apply --check ../receta/parche-12-mapas-s8.patch
+          git apply ../receta/parche-12-mapas-s8.patch
+          git apply --check ../receta/parche-13-terreno-capa2.patch
+          git apply ../receta/parche-13-terreno-capa2.patch
+          git apply --check ../receta/parche-14-npc-y-textura.patch
+          git apply ../receta/parche-14-npc-y-textura.patch
+          git apply --check ../receta/parche-15-diagnostico.patch
+          git apply ../receta/parche-15-diagnostico.patch
+          git apply --check ../receta/parche-16-antes-del-toro.patch
+          git apply ../receta/parche-16-antes-del-toro.patch
+          git apply --check ../receta/parche-17-diagnostico-mallas.patch
+          git apply ../receta/parche-17-diagnostico-mallas.patch
+          git apply --check ../receta/parche-18-animacion-y-npc.patch
+          git apply ../receta/parche-18-animacion-y-npc.patch
+          git apply --check ../receta/parche-19-mineria.patch
+          git apply ../receta/parche-19-mineria.patch
+          git apply --check ../receta/parche-20-jin-mapa-92.patch
+          git apply ../receta/parche-20-jin-mapa-92.patch
           git diff --stat
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"
