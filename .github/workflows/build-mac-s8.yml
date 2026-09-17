@@ -55,6 +55,8 @@ jobs:
           git apply ../receta/parche-18-animacion-y-npc.patch
           git apply --check ../receta/parche-19-mineria.patch
           git apply ../receta/parche-19-mineria.patch
+          git apply --check ../receta/parche-20-jin-mapa-92.patch
+          git apply ../receta/parche-20-jin-mapa-92.patch
           git diff --stat
           # --- parche 19: mineria Jewel of Pandora ---
           # el protocolo: el case en el despachador y las tres funciones de envio
@@ -94,6 +96,9 @@ jobs:
           grep -q 'case 583:   // Jin' src/source/Engine/Object/ZzzCharacter.cpp \
             && echo "parche 18: los NPC de Acheron son NPC, no bichos" \
             || { echo "parche 18 no aplicado (NPC)" >&2; exit 1; }
+          grep -q 'case 604: AcheronNpc = MODEL_ACHERON_NPC_JINN' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 20: Jin del mapa 92 con su modelo, no de toro" \
+            || { echo "parche 20 no aplicado (modelo de Jin 604)" >&2; exit 1; }
           grep -q 'Diagnostico malla' src/source/Render/Models/ZzzBMD.cpp \
             && echo "parche 17: diagnostico de mallas sin textura" \
             || { echo "parche 17 no aplicado" >&2; exit 1; }

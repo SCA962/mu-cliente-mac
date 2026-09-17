@@ -1,0 +1,16 @@
+diff --git a/src/source/Engine/Object/ZzzCharacter.cpp b/src/source/Engine/Object/ZzzCharacter.cpp
+index 366c20f..3a42632 100644
+--- a/src/source/Engine/Object/ZzzCharacter.cpp
++++ b/src/source/Engine/Object/ZzzCharacter.cpp
+@@ -13301,6 +13301,11 @@ static CHARACTER* CreateSeason8Character(EMonsterType Type, int PositionX, int P
+     case 581: AcheronNpc = MODEL_ACHERON_NPC_DERUVISH; break;
+     case 582: AcheronNpc = MODEL_ACHERON_NPC_ADNIEL; break;
+     case 583: AcheronNpc = MODEL_ACHERON_NPC_JINN; break;
++    // El Jin del mapa 92 es el MISMO Jin, con otra tienda. Sin esta linea cae al default,
++    // se queda sin modelo propio y acaba saliendo de toro, que es lo que hace el cliente
++    // con cualquier bicho que no reconoce. Estaba en IsForcedNpcMonsterType (por eso sale
++    // con nombre verde y sin barra de vida) pero no aqui, que es donde se elige el modelo.
++    case 604: AcheronNpc = MODEL_ACHERON_NPC_JINN; break;
+     case 584: AcheronNpc = MODEL_ACHERON_NPC_LESNAR; break;
+     default: break;
+     }
