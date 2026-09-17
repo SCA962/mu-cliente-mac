@@ -61,6 +61,8 @@ jobs:
           git apply ../receta/parche-19-mineria.patch
           git apply --check ../receta/parche-20-jin-mapa-92.patch
           git apply ../receta/parche-20-jin-mapa-92.patch
+          git apply --check ../receta/parche-21-puntos-pisados.patch
+          git apply ../receta/parche-21-puntos-pisados.patch
           git diff --stat
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"
@@ -208,6 +210,8 @@ jobs:
           git apply ../receta/parche-19-mineria.patch
           git apply --check ../receta/parche-20-jin-mapa-92.patch
           git apply ../receta/parche-20-jin-mapa-92.patch
+          git apply --check ../receta/parche-21-puntos-pisados.patch
+          git apply ../receta/parche-21-puntos-pisados.patch
           git diff --stat
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"

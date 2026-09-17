@@ -57,6 +57,8 @@ jobs:
           git apply ../receta/parche-19-mineria.patch
           git apply --check ../receta/parche-20-jin-mapa-92.patch
           git apply ../receta/parche-20-jin-mapa-92.patch
+          git apply --check ../receta/parche-21-puntos-pisados.patch
+          git apply ../receta/parche-21-puntos-pisados.patch
           git diff --stat
           # --- parche 19: mineria Jewel of Pandora ---
           # el protocolo: el case en el despachador y las tres funciones de envio
