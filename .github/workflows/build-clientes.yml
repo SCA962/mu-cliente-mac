@@ -65,6 +65,104 @@ jobs:
           git apply ../receta/parche-21-puntos-pisados.patch
           git apply --check ../receta/parche-22-tirar-items-de-mision.patch
           git apply ../receta/parche-22-tirar-items-de-mision.patch
+          # --- parches 11 a 22: controles de contenido (copiados de build-mac-s8.yml el 18-09-2026; 21 y 22 nuevos) ---
+          # --- parche 19: mineria Jewel of Pandora ---
+          # el protocolo: el case en el despachador y las tres funciones de envio
+          grep -q 'case 0x4C:' src/source/Network/Server/WSclient.cpp \
+            && echo "parche 19: el cliente escucha el 0x4C" \
+            || { echo "parche 19 no aplicado (case 0x4C)" >&2; exit 1; }
+          test "$(grep -c 'void SendPandora' src/source/Network/Server/WSclient.cpp)" = "3" \
+            && echo "parche 19: las tres peticiones de mineria" \
+            || { echo "parche 19 no aplicado (envio)" >&2; exit 1; }
+          # los tamanos del protocolo son los del S8; si alguien mueve un campo, el static_assert lo dice
+          test "$(grep -c 'static_assert(sizeof(PMSG_PANDORA' src/source/Network/Server/WSclient.h)" = "5" \
+            && echo "parche 19: los 5 guardas de tamano del protocolo" \
+            || { echo "parche 19 no aplicado (static_assert)" >&2; exit 1; }
+          # las zonas son NPC y se crean sin modelo, o el switch las convierte en Bull Fighter
+          grep -q 'case 605:   // Mining Area (Small)' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 19: las zonas son NPC, no bichos" \
+            || { echo "parche 19 no aplicado (NPC)" >&2; exit 1; }
+          grep -q 'PANDORA_ZONE_MODEL_INDEX' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 19: zonas sin modelo con caja propia" \
+            || { echo "parche 19 no aplicado (sin modelo)" >&2; exit 1; }
+          grep -q 'MovePandoraMiningZone' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 19: el parpadeo de la zona" \
+            || { echo "parche 19 no aplicado (parpadeo)" >&2; exit 1; }
+          # el clic y el cartel
+          grep -q 'PANDORA_PICK_TYPE' src/source/Engine/Object/ZzzInterface.cpp \
+            && echo "parche 19: el clic exige el pico" \
+            || { echo "parche 19 no aplicado (clic)" >&2; exit 1; }
+          grep -q 'CPandoraMiningMsgBoxLayout' src/source/UI/NewUI/Dialogs/NewUICommonMessageBox.cpp \
+            && echo "parche 19: cartel de cobrar o seguir" \
+            || { echo "parche 19 no aplicado (cartel)" >&2; exit 1; }
+          test "$(grep -c 'PandoraMining' src/Localization/Game.en.resx)" -ge "12" \
+            && echo "parche 19: las 12 cadenas de la mineria" \
+            || { echo "parche 19 no aplicado (cadenas)" >&2; exit 1; }
+          grep -q 'Actions\[MONSTER01_WALK\].PlaySpeed' src/source/Engine/Object/ZzzOpenData.cpp \
+            && echo "parche 18: velocidad de animacion de los bichos nuevos" \
+            || { echo "parche 18 no aplicado (animacion)" >&2; exit 1; }
+          grep -q 'case 583:   // Jin' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 18: los NPC de Acheron son NPC, no bichos" \
+            || { echo "parche 18 no aplicado (NPC)" >&2; exit 1; }
+          grep -q 'case 604: AcheronNpc = MODEL_ACHERON_NPC_JINN' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 20: Jin del mapa 92 con su modelo, no de toro" \
+            || { echo "parche 20 no aplicado (modelo de Jin 604)" >&2; exit 1; }
+          grep -q 'Diagnostico malla' src/source/Render/Models/ZzzBMD.cpp \
+            && echo "parche 17: diagnostico de mallas sin textura" \
+            || { echo "parche 17 no aplicado" >&2; exit 1; }
+          # parche 16: el respaldo del S8 va ANTES del switch que termina en Bull Fighter
+          grep -q 'CreateSeason8Character' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 16: respaldo del S8 antes del switch" \
+            || { echo "parche 16 no aplicado" >&2; exit 1; }
+          # parche 15: los tres diagnosticos que van al MuError.log
+          test "$(grep -rc 'Diagnostico' src/source/World/MapInfra/MapManager.cpp src/source/Engine/Object/ZzzCharacter.cpp src/source/Engine/Object/ZzzObject.cpp | grep -c ':0')" = "0" \
+            && echo "parche 15: diagnosticos en los tres ficheros" \
+            || { echo "parche 15 no aplicado" >&2; exit 1; }
+          # parche 14: modelos propios de los NPC de Acheron y casillas sin textura
+          grep -q 'MODEL_ACHERON_NPC_DERUVISH' src/source/Core/Globals/_enum.h \
+            && echo "parche 14: modelos de los NPC de Acheron" \
+            || { echo "parche 14 no aplicado (NPC)" >&2; exit 1; }
+          grep -q 'Akeron' src/source/Engine/Object/ZzzOpenData.cpp \
+            && echo "parche 14: carga de los modelos de Akeron" \
+            || { echo "parche 14 no aplicado (carga)" >&2; exit 1; }
+          test "$(grep -c 'SafeTileTexture' src/source/Render/Terrain/ZzzLodTerrain.cpp)" -ge "6" \
+            && echo "parche 14: guarda de casillas sin textura" \
+            || { echo "parche 14 no aplicado (textura de casilla)" >&2; exit 1; }
+          # parche 13: una celda sin segunda capa (255) ya no se pinta con una textura que no existe
+          test "$(grep -c 'TerrainMappingLayer2\[TerrainIndex1\] != 255' src/source/Render/Terrain/ZzzLodTerrain.cpp)" = "2" \
+            && echo "parche 13: guarda de la capa 2 en los dos sitios" \
+            || { echo "parche 13 no aplicado (capa 2)" >&2; exit 1; }
+          # parche 12: mapas del S8 (nombre, placa, musica) y skills maestras 609-617
+          grep -q 'WD_91ACHERON = 91' src/source/World/MapInfra/MapManager.h \
+            && echo "parche 12: mundos del S8 en el enum" \
+            || { echo "parche 12 no aplicado (enum de mundos)" >&2; exit 1; }
+          grep -q 'I18N::Game::Debenter' src/source/World/MapInfra/MapManager.cpp \
+            && echo "parche 12: nombre de los mapas nuevos" \
+            || { echo "parche 12 no aplicado (nombre de mapa)" >&2; exit 1; }
+          grep -q 'MapName_Akeron.tga' src/source/UI/Legacy/UIMapName.cpp \
+            && echo "parche 12: placa de Acheron" \
+            || { echo "parche 12 no aplicado (placa)" >&2; exit 1; }
+          grep -q 'm_bHasImg' src/source/UI/Legacy/UIMapName.cpp \
+            && echo "parche 12: un mundo sin placa ya no abre el dialogo que paraba el juego" \
+            || { echo "parche 12 no aplicado (guarda de LoadBitmap)" >&2; exit 1; }
+          grep -q 'AT_SKILL_MASTER_END = 617' src/source/Core/Globals/_enum.h \
+            && echo "parche 12: skills maestras hasta la 617" \
+            || { echo "parche 12 no aplicado (skills 609-617)" >&2; exit 1; }
+          grep -q 'name="Debenter"' src/Localization/Game.en.resx \
+            && echo "parche 12: texto Debenter en la localizacion" \
+            || { echo "parche 12 no aplicado (localizacion)" >&2; exit 1; }
+          grep -q 'ExtraItems.txt' src/source/Engine/Object/ZzzOpenData.cpp \
+            && echo "parche 11: tabla de items extra en el codigo" \
+            || { echo "parche 11 no aplicado (items)" >&2; exit 1; }
+          grep -q 'GetExtraMonsterModel' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 11: bichos extra en CreateMonster" \
+            || { echo "parche 11 no aplicado (bichos)" >&2; exit 1; }
+          grep -qF -- 'const SIZE sizeLevel = g_pRenderText->MeasureText(strLevel, (int)wcslen(strLevel));' src/source/UI/NewUI/Character/NewUICharacterInfoWindow.cpp \
+            && echo "parche 21: los puntos por repartir ya no se pisan con el nivel" \
+            || { echo "parche 21 no aplicado" >&2; exit 1; }
+          grep -qF -- 'if ((pItem->Type >= ITEM_FLAME_OF_DEATH_BEAM_KNIGHT && pItem->Type <= ITEM_EYE_OF_ABYSSAL)' src/source/Engine/Object/ZzzInventory.cpp \
+            && echo "parche 22: los items de mision se pueden tirar" \
+            || { echo "parche 22 no aplicado" >&2; exit 1; }
           git diff --stat
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"
@@ -216,6 +314,104 @@ jobs:
           git apply ../receta/parche-21-puntos-pisados.patch
           git apply --check ../receta/parche-22-tirar-items-de-mision.patch
           git apply ../receta/parche-22-tirar-items-de-mision.patch
+          # --- parches 11 a 22: controles de contenido (copiados de build-mac-s8.yml el 18-09-2026; 21 y 22 nuevos) ---
+          # --- parche 19: mineria Jewel of Pandora ---
+          # el protocolo: el case en el despachador y las tres funciones de envio
+          grep -q 'case 0x4C:' src/source/Network/Server/WSclient.cpp \
+            && echo "parche 19: el cliente escucha el 0x4C" \
+            || { echo "parche 19 no aplicado (case 0x4C)" >&2; exit 1; }
+          test "$(grep -c 'void SendPandora' src/source/Network/Server/WSclient.cpp)" = "3" \
+            && echo "parche 19: las tres peticiones de mineria" \
+            || { echo "parche 19 no aplicado (envio)" >&2; exit 1; }
+          # los tamanos del protocolo son los del S8; si alguien mueve un campo, el static_assert lo dice
+          test "$(grep -c 'static_assert(sizeof(PMSG_PANDORA' src/source/Network/Server/WSclient.h)" = "5" \
+            && echo "parche 19: los 5 guardas de tamano del protocolo" \
+            || { echo "parche 19 no aplicado (static_assert)" >&2; exit 1; }
+          # las zonas son NPC y se crean sin modelo, o el switch las convierte en Bull Fighter
+          grep -q 'case 605:   // Mining Area (Small)' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 19: las zonas son NPC, no bichos" \
+            || { echo "parche 19 no aplicado (NPC)" >&2; exit 1; }
+          grep -q 'PANDORA_ZONE_MODEL_INDEX' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 19: zonas sin modelo con caja propia" \
+            || { echo "parche 19 no aplicado (sin modelo)" >&2; exit 1; }
+          grep -q 'MovePandoraMiningZone' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 19: el parpadeo de la zona" \
+            || { echo "parche 19 no aplicado (parpadeo)" >&2; exit 1; }
+          # el clic y el cartel
+          grep -q 'PANDORA_PICK_TYPE' src/source/Engine/Object/ZzzInterface.cpp \
+            && echo "parche 19: el clic exige el pico" \
+            || { echo "parche 19 no aplicado (clic)" >&2; exit 1; }
+          grep -q 'CPandoraMiningMsgBoxLayout' src/source/UI/NewUI/Dialogs/NewUICommonMessageBox.cpp \
+            && echo "parche 19: cartel de cobrar o seguir" \
+            || { echo "parche 19 no aplicado (cartel)" >&2; exit 1; }
+          test "$(grep -c 'PandoraMining' src/Localization/Game.en.resx)" -ge "12" \
+            && echo "parche 19: las 12 cadenas de la mineria" \
+            || { echo "parche 19 no aplicado (cadenas)" >&2; exit 1; }
+          grep -q 'Actions\[MONSTER01_WALK\].PlaySpeed' src/source/Engine/Object/ZzzOpenData.cpp \
+            && echo "parche 18: velocidad de animacion de los bichos nuevos" \
+            || { echo "parche 18 no aplicado (animacion)" >&2; exit 1; }
+          grep -q 'case 583:   // Jin' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 18: los NPC de Acheron son NPC, no bichos" \
+            || { echo "parche 18 no aplicado (NPC)" >&2; exit 1; }
+          grep -q 'case 604: AcheronNpc = MODEL_ACHERON_NPC_JINN' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 20: Jin del mapa 92 con su modelo, no de toro" \
+            || { echo "parche 20 no aplicado (modelo de Jin 604)" >&2; exit 1; }
+          grep -q 'Diagnostico malla' src/source/Render/Models/ZzzBMD.cpp \
+            && echo "parche 17: diagnostico de mallas sin textura" \
+            || { echo "parche 17 no aplicado" >&2; exit 1; }
+          # parche 16: el respaldo del S8 va ANTES del switch que termina en Bull Fighter
+          grep -q 'CreateSeason8Character' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 16: respaldo del S8 antes del switch" \
+            || { echo "parche 16 no aplicado" >&2; exit 1; }
+          # parche 15: los tres diagnosticos que van al MuError.log
+          test "$(grep -rc 'Diagnostico' src/source/World/MapInfra/MapManager.cpp src/source/Engine/Object/ZzzCharacter.cpp src/source/Engine/Object/ZzzObject.cpp | grep -c ':0')" = "0" \
+            && echo "parche 15: diagnosticos en los tres ficheros" \
+            || { echo "parche 15 no aplicado" >&2; exit 1; }
+          # parche 14: modelos propios de los NPC de Acheron y casillas sin textura
+          grep -q 'MODEL_ACHERON_NPC_DERUVISH' src/source/Core/Globals/_enum.h \
+            && echo "parche 14: modelos de los NPC de Acheron" \
+            || { echo "parche 14 no aplicado (NPC)" >&2; exit 1; }
+          grep -q 'Akeron' src/source/Engine/Object/ZzzOpenData.cpp \
+            && echo "parche 14: carga de los modelos de Akeron" \
+            || { echo "parche 14 no aplicado (carga)" >&2; exit 1; }
+          test "$(grep -c 'SafeTileTexture' src/source/Render/Terrain/ZzzLodTerrain.cpp)" -ge "6" \
+            && echo "parche 14: guarda de casillas sin textura" \
+            || { echo "parche 14 no aplicado (textura de casilla)" >&2; exit 1; }
+          # parche 13: una celda sin segunda capa (255) ya no se pinta con una textura que no existe
+          test "$(grep -c 'TerrainMappingLayer2\[TerrainIndex1\] != 255' src/source/Render/Terrain/ZzzLodTerrain.cpp)" = "2" \
+            && echo "parche 13: guarda de la capa 2 en los dos sitios" \
+            || { echo "parche 13 no aplicado (capa 2)" >&2; exit 1; }
+          # parche 12: mapas del S8 (nombre, placa, musica) y skills maestras 609-617
+          grep -q 'WD_91ACHERON = 91' src/source/World/MapInfra/MapManager.h \
+            && echo "parche 12: mundos del S8 en el enum" \
+            || { echo "parche 12 no aplicado (enum de mundos)" >&2; exit 1; }
+          grep -q 'I18N::Game::Debenter' src/source/World/MapInfra/MapManager.cpp \
+            && echo "parche 12: nombre de los mapas nuevos" \
+            || { echo "parche 12 no aplicado (nombre de mapa)" >&2; exit 1; }
+          grep -q 'MapName_Akeron.tga' src/source/UI/Legacy/UIMapName.cpp \
+            && echo "parche 12: placa de Acheron" \
+            || { echo "parche 12 no aplicado (placa)" >&2; exit 1; }
+          grep -q 'm_bHasImg' src/source/UI/Legacy/UIMapName.cpp \
+            && echo "parche 12: un mundo sin placa ya no abre el dialogo que paraba el juego" \
+            || { echo "parche 12 no aplicado (guarda de LoadBitmap)" >&2; exit 1; }
+          grep -q 'AT_SKILL_MASTER_END = 617' src/source/Core/Globals/_enum.h \
+            && echo "parche 12: skills maestras hasta la 617" \
+            || { echo "parche 12 no aplicado (skills 609-617)" >&2; exit 1; }
+          grep -q 'name="Debenter"' src/Localization/Game.en.resx \
+            && echo "parche 12: texto Debenter en la localizacion" \
+            || { echo "parche 12 no aplicado (localizacion)" >&2; exit 1; }
+          grep -q 'ExtraItems.txt' src/source/Engine/Object/ZzzOpenData.cpp \
+            && echo "parche 11: tabla de items extra en el codigo" \
+            || { echo "parche 11 no aplicado (items)" >&2; exit 1; }
+          grep -q 'GetExtraMonsterModel' src/source/Engine/Object/ZzzCharacter.cpp \
+            && echo "parche 11: bichos extra en CreateMonster" \
+            || { echo "parche 11 no aplicado (bichos)" >&2; exit 1; }
+          grep -qF -- 'const SIZE sizeLevel = g_pRenderText->MeasureText(strLevel, (int)wcslen(strLevel));' src/source/UI/NewUI/Character/NewUICharacterInfoWindow.cpp \
+            && echo "parche 21: los puntos por repartir ya no se pisan con el nivel" \
+            || { echo "parche 21 no aplicado" >&2; exit 1; }
+          grep -qF -- 'if ((pItem->Type >= ITEM_FLAME_OF_DEATH_BEAM_KNIGHT && pItem->Type <= ITEM_EYE_OF_ABYSSAL)' src/source/Engine/Object/ZzzInventory.cpp \
+            && echo "parche 22: los items de mision se pueden tirar" \
+            || { echo "parche 22 no aplicado" >&2; exit 1; }
           git diff --stat
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"
@@ -419,10 +615,12 @@ jobs:
           cd artefactos
           ls -l
           sha256sum *.zip *.tar.gz | tee sha256.txt
-          TAG="v1.2.5-parche9-r${{ github.run_number }}"
+          TAG="v1.2.5-s8-parche22-r${{ github.run_number }}"
           {
-            echo "MuMain v1.2.5 (fork yesid-bocanegra, tag v1.2.5) compilado con los diez parches de cliente-mac-parches.patch"
-            echo "(shaders, musica, nombres largos en MU Helper, intercambio, maquina del caos, opcion 380 visible, textos del MU Helper en ingles, traducciones arregladas, tooltip de la Phoenix Soul Star, semilla de Tierra). Editor OFF, sin data."
+            echo "CLIENTE CON CONTENIDO SEASON 8: MuMain v1.2.5 (fork yesid-bocanegra, tag v1.2.5) compilado desde la rama ${{ github.ref_name }} (commit ${{ github.sha }}) con los parches 1 a 22:"
+            echo "los diez del cliente S6 (cliente-mac-parches.patch: shaders, musica, nombres largos en MU Helper, intercambio, maquina del caos, opcion 380 visible, textos del MU Helper en ingles, traducciones arregladas, tooltip de la Phoenix Soul Star, semilla de Tierra),"
+            echo "los diez del Season 8 (parche-11 a parche-20: contenido extra, mapas nuevos, terreno capa 2, NPC y texturas, diagnostico, bichos S8 antes del toro, mallas, animacion y NPC, mineria de la Jewel of Pandora, Jin en el mapa 92),"
+            echo "el 21 (los puntos por repartir se pisaban con el nivel) y el 22 (los items de mision se pueden tirar). Editor OFF, sin data."
             echo
             echo "- Mac (arm64): MuMain-macos-native-arm64-release-editor-off-no-data-parchado.tar.gz, para actualizar-cliente-mac.sh"
             echo "- Windows (x64), jugadores: Mu-cliente-windows-parche9.zip (Main.exe, DLL y shaders; sin Data, fonts ni config.ini: se descomprime encima de la carpeta del juego)"
@@ -433,4 +631,4 @@ jobs:
             cat sha256.txt
             echo '```'
           } > notas.md
-          gh release create "$TAG" --repo "${{ github.repository }}" --title "Clientes Mac y Windows parchados ($TAG)" --notes-file notas.md *.zip *.tar.gz sha256.txt
+          gh release create "$TAG" --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Clientes Mac y Windows con contenido S8 ($TAG)" --notes-file notas.md *.zip *.tar.gz sha256.txt
