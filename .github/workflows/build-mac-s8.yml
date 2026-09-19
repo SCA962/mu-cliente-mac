@@ -61,6 +61,8 @@ jobs:
           git apply ../receta/parche-21-puntos-pisados.patch
           git apply --check ../receta/parche-22-tirar-items-de-mision.patch
           git apply ../receta/parche-22-tirar-items-de-mision.patch
+          git apply --check ../receta/parche-23-usar-consumibles-s8.patch
+          git apply ../receta/parche-23-usar-consumibles-s8.patch
           git diff --stat
           # --- parche 19: mineria Jewel of Pandora ---
           # el protocolo: el case en el despachador y las tres funciones de envio

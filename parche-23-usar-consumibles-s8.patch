@@ -1,0 +1,25 @@
+diff --git a/src/source/UI/NewUI/Inventory/NewUIInventoryActionController.cpp b/src/source/UI/NewUI/Inventory/NewUIInventoryActionController.cpp
+--- a/src/source/UI/NewUI/Inventory/NewUIInventoryActionController.cpp
++++ b/src/source/UI/NewUI/Inventory/NewUIInventoryActionController.cpp
+@@ -628,6 +628,21 @@
+         return true;
+     }
+ 
++    // Consumibles de Season 8 que este cliente (codigo Season 6) no conocia: talismanes y sellos
++    // de Ascension (13/177-181), Blessing of Light (14/224) y los Scroll Master (14/225-232 y 235).
++    // El servidor los consume por su efecto (ApplyMagicEffectConsumeHandlerPlugIn); los dos que
++    // no tienen efecto (229 y 230) reciben un "no implementado" y se quedan en la mochila.
++    // Sin esta lista el clic derecho caia mas abajo en TryDropItem y el item se TIRABA AL PISO,
++    // sin mandar nunca el paquete de uso: por eso el talisman "desaparecia" sin dar experiencia
++    // ni icono. Encontrado el 18-09-2026 con la prueba de Stefano.
++    if ((pItem->Type >= ITEM_HELPER + 177 && pItem->Type <= ITEM_HELPER + 181) ||
++        (pItem->Type >= ITEM_POTION + 224 && pItem->Type <= ITEM_POTION + 232) ||
++        pItem->Type == ITEM_POTION + 235)
++    {
++        SendRequestUse(iIndex, 0);
++        return true;
++    }
++
+     const auto isApple = pItem->Type == ITEM_APPLE;
+     const auto isPotion = (pItem->Type >= ITEM_APPLE && pItem->Type <= ITEM_ALE) ||
+                           (pItem->Type >= ITEM_SMALL_SHIELD_POTION && pItem->Type <= ITEM_LARGE_COMPLEX_POTION);
