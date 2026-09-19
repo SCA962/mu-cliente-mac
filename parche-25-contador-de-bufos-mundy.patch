@@ -1,0 +1,197 @@
+diff --git a/src/source/Core/Utilities/_GlobalFunctions.h b/src/source/Core/Utilities/_GlobalFunctions.h
+--- a/src/source/Core/Utilities/_GlobalFunctions.h
++++ b/src/source/Core/Utilities/_GlobalFunctions.h
+@@ -74,6 +74,9 @@ BuffStateValueControl& TheBuffStateValueControl();
+ #define g_StringTime( time, timeText, issecond ) \
+ 	TheBuffTimeControl().GetStringTime( time, timeText, issecond )
+ 
++#define g_BuffRemainingSeconds( bufftype ) \
++	TheBuffTimeControl().GetBuffRemainingSeconds( bufftype )
++
+ //TheBuffStateValueControl
+ #define g_BuffStateValue( type ) \
+ 	TheBuffStateValueControl().GetValue( type )
+diff --git a/src/source/GameLogic/Buffs/w_BuffTimeControl.cpp b/src/source/GameLogic/Buffs/w_BuffTimeControl.cpp
+--- a/src/source/GameLogic/Buffs/w_BuffTimeControl.cpp
++++ b/src/source/GameLogic/Buffs/w_BuffTimeControl.cpp
+@@ -100,7 +100,13 @@ void BuffTimeControl::RegisterBuffTime(eBuffState bufftype, DWORD curbufftime)
+         return;
+     }
+ 
+-    if (IsBuffTime(bufftimetype)) return;
++    // Always reset: kill any existing timer so re-casts never get blocked by a
++    // stale or still-running entry.
++    if (IsBuffTime(bufftimetype))
++    {
++        Core::Time::FrameTimerScheduler::Instance().Kill(bufftimetype);
++        m_BuffTimeList.erase(bufftimetype);
++    }
+ 
+     BuffTimeInfo  buffinfo;
+     buffinfo.s_BuffType = bufftype;
+@@ -115,7 +121,10 @@ void BuffTimeControl::RegisterBuffTime(eBuffState bufftype, DWORD curbufftime)
+         [this, bufftimetype]
+         {
+             if (!CheckBuffTime(bufftimetype))
++            {
+                 Core::Time::FrameTimerScheduler::Instance().Kill(bufftimetype);
++                m_BuffTimeList.erase(bufftimetype);
++            }
+         });
+ }
+ 
+@@ -232,6 +241,21 @@ void BuffTimeControl::GetStringTime(DWORD time, std::wstring& timeText, bool isS
+     }
+ }
+ 
++DWORD BuffTimeControl::GetBuffRemainingSeconds(eBuffState bufftype)
++{
++    for (auto& kv : m_BuffTimeList)
++    {
++        if (kv.second.s_BuffType == bufftype)
++        {
++            DWORD elapsed = GetTickCount() - kv.second.s_EventBuffTime;
++            if (kv.second.s_CurBuffTime > elapsed)
++                return (kv.second.s_CurBuffTime - elapsed) / 1000;
++            return 0;
++        }
++    }
++    return 0;
++}
++
+ bool BuffTimeControl::CheckBuffTime(DWORD type)
+ {
+     auto iter = m_BuffTimeList.find(type);
+diff --git a/src/source/GameLogic/Buffs/w_BuffTimeControl.h b/src/source/GameLogic/Buffs/w_BuffTimeControl.h
+--- a/src/source/GameLogic/Buffs/w_BuffTimeControl.h
++++ b/src/source/GameLogic/Buffs/w_BuffTimeControl.h
+@@ -18,6 +18,7 @@ class BuffTimeControl
+     void GetBuffStringTime(DWORD type, std::wstring& timeText, bool issecond = true);
+     const DWORD GetBuffTime(DWORD type);
+     void GetStringTime(DWORD time, std::wstring& timeText, bool isSecond = true);
++    DWORD GetBuffRemainingSeconds(eBuffState bufftype);
+ 
+ private:
+     eBuffTimeType CheckBuffTimeType(eBuffState bufftype);
+diff --git a/src/source/Network/Server/WSclient.cpp b/src/source/Network/Server/WSclient.cpp
+--- a/src/source/Network/Server/WSclient.cpp
++++ b/src/source/Network/Server/WSclient.cpp
+@@ -3802,6 +3802,8 @@ void ReceiveAction(const BYTE* ReceiveBuffer, int Size)
+     g_ConsoleDebug->Write(MCD_RECEIVE, L"0x18 [ReceiveAction(%d)]", Data->Angle);
+ }
+ 
++void InsertBuffLogicalEffect(eBuffState buff, OBJECT* o, const int bufftime);
++
+ void ReceiveSkillStatus(const BYTE* ReceiveBuffer)
+ {
+     auto Data = (LPPMSG_VIEWSKILLSTATE)ReceiveBuffer;
+@@ -3818,8 +3820,15 @@ void ReceiveSkillStatus(const BYTE* ReceiveBuffer)
+ 
+         if (g_isCharacterBuff(o, bufftype))
+         {
+-            if ((o->Type >= MODEL_CRYWOLF_ALTAR1 && o->Type <= MODEL_CRYWOLF_ALTAR5) || MODEL_SMITH ||
+-                MODEL_NPC_SERBIS || MODEL_MERCHANT_MAN || MODEL_STORAGE || MODEL_NPC_BREEDER)
++            if (o == &Hero->Object)
++            {
++                // Buff re-applied while already active: reset the client-side timer display.
++                InsertBuffLogicalEffect(bufftype, o, 0);
++            }
++            else if ((o->Type >= MODEL_CRYWOLF_ALTAR1 && o->Type <= MODEL_CRYWOLF_ALTAR5) ||
++                     o->Type == MODEL_SMITH || o->Type == MODEL_NPC_SERBIS ||
++                     o->Type == MODEL_MERCHANT_MAN || o->Type == MODEL_STORAGE ||
++                     o->Type == MODEL_NPC_BREEDER)
+             {
+                 if (g_isCharacterBuff(o, eBuff_CrywolfHeroContracted))
+                 {
+@@ -15129,6 +15138,19 @@ void InsertBuffLogicalEffect(eBuffState buff, OBJECT* o, const int bufftime)
+     {
+         switch (buff)
+         {
++        case eBuff_Attack:
++        case eBuff_Defense:
++        case eBuff_Life:
++        case eBuff_WizDefense:
++        case eBuff_AddCriticalDamage:
++        case eBuff_AddAG:
++        case eBuff_HelpNpc:
++        {
++            DWORD duration = (bufftime > 0) ? static_cast<DWORD>(bufftime) : 60u;
++            g_UnRegisterBuffTime(buff);
++            g_RegisterBuffTime(buff, duration);
++        }
++        break;
+         case eBuff_Hellowin1:
+         case eBuff_Hellowin2:
+         case eBuff_Hellowin3:
+@@ -15312,6 +15334,17 @@ void ClearBuffLogicalEffect(eBuffState buff, OBJECT* o)
+     {
+         switch (buff)
+         {
++        case eBuff_Attack:
++        case eBuff_Defense:
++        case eBuff_Life:
++        case eBuff_WizDefense:
++        case eBuff_AddCriticalDamage:
++        case eBuff_AddAG:
++        case eBuff_HelpNpc:
++        {
++            g_UnRegisterBuffTime(buff);
++        }
++        break;
+         case eBuff_Hellowin1:
+         case eBuff_Hellowin2:
+         case eBuff_Hellowin3:
+diff --git a/src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp b/src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp
+--- a/src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp
++++ b/src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp
+@@ -309,6 +309,7 @@ void SEASON3B::CNewUIBuffWindow::RenderBuffStatus(BUFF_RENDER renderstate)
+         if (renderstate == BUFF_RENDER_ICON)
+         {
+             RenderBuffIcon(buff, x, y, BUFF_IMG_WIDTH, BUFF_IMG_HEIGHT);
++            RenderBuffTimer(buff, x, y, BUFF_IMG_WIDTH, BUFF_IMG_HEIGHT);
+ #ifdef _DEBUG
+             int iBuffReferenceCount = g_CharacterBuffCount(pHeroObject, buff);
+             RenderNumber(x + 5, y + 5, iBuffReferenceCount, 1.f);
+@@ -360,6 +361,31 @@ void SEASON3B::CNewUIBuffWindow::RenderBuffIcon(eBuffState& eBuffType, float x,
+     }
+ }
+ 
++void SEASON3B::CNewUIBuffWindow::RenderBuffTimer(eBuffState buff, float x, float y, float width, float height)
++{
++    DWORD remaining = g_BuffRemainingSeconds(buff);
++    if (remaining == 0)
++        return;
++
++    wchar_t text[16];
++    if (remaining >= 60)
++        mu_swprintf(text, L"%d:%02d", remaining / 60, remaining % 60);
++    else
++        mu_swprintf(text, L"%ds", remaining);
++
++    if (remaining <= 5)
++        g_pRenderText->SetTextColor(255, 60, 60, 220);
++    else if (remaining <= 15)
++        g_pRenderText->SetTextColor(255, 210, 40, 220);
++    else
++        g_pRenderText->SetTextColor(255, 255, 255, 200);
++
++    g_pRenderText->SetFont(g_hFont);
++    g_pRenderText->SetBgColor(0, 0, 0, 0);
++    g_pRenderText->RenderText(static_cast<int>(x), static_cast<int>(y + height + 2),
++        text, static_cast<int>(width), 0, RT3_SORT_CENTER);
++}
++
+ void SEASON3B::CNewUIBuffWindow::RenderBuffTooltip(eBuffClass& eBuffClassType, eBuffState& eBuffType, float x, float y)
+ {
+     int TextNum = 0;
+diff --git a/src/source/UI/NewUI/HUD/NewUIBuffWindow.h b/src/source/UI/NewUI/HUD/NewUIBuffWindow.h
+--- a/src/source/UI/NewUI/HUD/NewUIBuffWindow.h
++++ b/src/source/UI/NewUI/HUD/NewUIBuffWindow.h
+@@ -50,6 +50,7 @@ namespace SEASON3B
+         void BuffSort(std::list<eBuffState>& buffstate);
+         void RenderBuffStatus(BUFF_RENDER renderstate);
+         void RenderBuffIcon(eBuffState& eBuffType, float x, float y, float width, float height);
++        void RenderBuffTimer(eBuffState buff, float x, float y, float width, float height);
+         void RenderBuffTooltip(eBuffClass& eBuffClassType, eBuffState& eBuffType, float x, float y);
+         bool SetDisableRenderBuff(const eBuffState& _BuffState);
+ 

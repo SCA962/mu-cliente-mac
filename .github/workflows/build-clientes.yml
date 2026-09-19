@@ -67,7 +67,11 @@ jobs:
           git apply ../receta/parche-22-tirar-items-de-mision.patch
           git apply --check ../receta/parche-23-usar-consumibles-s8.patch
           git apply ../receta/parche-23-usar-consumibles-s8.patch
-          # --- parches 11 a 23: controles de contenido (copiados de build-mac-s8.yml el 18-09-2026; 21, 22 y 23 nuevos) ---
+          git apply --check ../receta/parche-24-iconos-bufos-s8.patch
+          git apply ../receta/parche-24-iconos-bufos-s8.patch
+          git apply --check ../receta/parche-25-contador-de-bufos-mundy.patch
+          git apply ../receta/parche-25-contador-de-bufos-mundy.patch
+          # --- parches 11 a 25: controles de contenido (copiados de build-mac-s8.yml el 18-09-2026; 21 a 25 nuevos) ---
           # --- parche 19: mineria Jewel of Pandora ---
           # el protocolo: el case en el despachador y las tres funciones de envio
           grep -q 'case 0x4C:' src/source/Network/Server/WSclient.cpp \
@@ -168,6 +172,13 @@ jobs:
           grep -qF -- 'if ((pItem->Type >= ITEM_HELPER + 177 && pItem->Type <= ITEM_HELPER + 181) ||' src/source/UI/NewUI/Inventory/NewUIInventoryActionController.cpp \
             && echo "parche 23: los consumibles S8 se usan con clic derecho" \
             || { echo "parche 23 no aplicado" >&2; exit 1; }
+          grep -qF -- 'case EFFECT_TALISMAN_OF_ASCENSION3:        iIconType = eBuff_AscensionSealMaster; break;' src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp \
+            && echo "parche 24: los bufos S8 se dibujan con iconos S6" \
+            || { echo "parche 24 no aplicado" >&2; exit 1; }
+          grep -qF -- 'RenderBuffTimer(buff, x, y, BUFF_IMG_WIDTH, BUFF_IMG_HEIGHT);' src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp \
+            && grep -qF -- 'DWORD BuffTimeControl::GetBuffRemainingSeconds(eBuffState bufftype)' src/source/GameLogic/Buffs/w_BuffTimeControl.cpp \
+            && echo "parche 25: contador de tiempo bajo los bufos (Mundy)" \
+            || { echo "parche 25 no aplicado" >&2; exit 1; }
           git diff --stat
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"
@@ -321,7 +332,11 @@ jobs:
           git apply ../receta/parche-22-tirar-items-de-mision.patch
           git apply --check ../receta/parche-23-usar-consumibles-s8.patch
           git apply ../receta/parche-23-usar-consumibles-s8.patch
-          # --- parches 11 a 23: controles de contenido (copiados de build-mac-s8.yml el 18-09-2026; 21, 22 y 23 nuevos) ---
+          git apply --check ../receta/parche-24-iconos-bufos-s8.patch
+          git apply ../receta/parche-24-iconos-bufos-s8.patch
+          git apply --check ../receta/parche-25-contador-de-bufos-mundy.patch
+          git apply ../receta/parche-25-contador-de-bufos-mundy.patch
+          # --- parches 11 a 25: controles de contenido (copiados de build-mac-s8.yml el 18-09-2026; 21 a 25 nuevos) ---
           # --- parche 19: mineria Jewel of Pandora ---
           # el protocolo: el case en el despachador y las tres funciones de envio
           grep -q 'case 0x4C:' src/source/Network/Server/WSclient.cpp \
@@ -422,6 +437,13 @@ jobs:
           grep -qF -- 'if ((pItem->Type >= ITEM_HELPER + 177 && pItem->Type <= ITEM_HELPER + 181) ||' src/source/UI/NewUI/Inventory/NewUIInventoryActionController.cpp \
             && echo "parche 23: los consumibles S8 se usan con clic derecho" \
             || { echo "parche 23 no aplicado" >&2; exit 1; }
+          grep -qF -- 'case EFFECT_TALISMAN_OF_ASCENSION3:        iIconType = eBuff_AscensionSealMaster; break;' src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp \
+            && echo "parche 24: los bufos S8 se dibujan con iconos S6" \
+            || { echo "parche 24 no aplicado" >&2; exit 1; }
+          grep -qF -- 'RenderBuffTimer(buff, x, y, BUFF_IMG_WIDTH, BUFF_IMG_HEIGHT);' src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp \
+            && grep -qF -- 'DWORD BuffTimeControl::GetBuffRemainingSeconds(eBuffState bufftype)' src/source/GameLogic/Buffs/w_BuffTimeControl.cpp \
+            && echo "parche 25: contador de tiempo bajo los bufos (Mundy)" \
+            || { echo "parche 25 no aplicado" >&2; exit 1; }
           git diff --stat
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUITrade.cpp)" = "1" && echo "parche 4 (intercambio) aplicado en el codigo"
           test "$(grep -c 'IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON)' src/source/UI/NewUI/Inventory/NewUIMixInventory.cpp)" = "3" && echo "parche 5 (maquina del caos) aplicado en el codigo"
@@ -625,12 +647,12 @@ jobs:
           cd artefactos
           ls -l
           sha256sum *.zip *.tar.gz | tee sha256.txt
-          TAG="v1.2.5-s8-parche23-r${{ github.run_number }}"
+          TAG="v1.2.5-s8-parche25-r${{ github.run_number }}"
           {
-            echo "CLIENTE CON CONTENIDO SEASON 8: MuMain v1.2.5 (fork yesid-bocanegra, tag v1.2.5) compilado desde la rama ${{ github.ref_name }} (commit ${{ github.sha }}) con los parches 1 a 23:"
+            echo "CLIENTE CON CONTENIDO SEASON 8: MuMain v1.2.5 (fork yesid-bocanegra, tag v1.2.5) compilado desde la rama ${{ github.ref_name }} (commit ${{ github.sha }}) con los parches 1 a 25:"
             echo "los diez del cliente S6 (cliente-mac-parches.patch: shaders, musica, nombres largos en MU Helper, intercambio, maquina del caos, opcion 380 visible, textos del MU Helper en ingles, traducciones arregladas, tooltip de la Phoenix Soul Star, semilla de Tierra),"
             echo "los diez del Season 8 (parche-11 a parche-20: contenido extra, mapas nuevos, terreno capa 2, NPC y texturas, diagnostico, bichos S8 antes del toro, mallas, animacion y NPC, mineria de la Jewel of Pandora, Jin en el mapa 92),"
-            echo "el 21 (los puntos por repartir se pisaban con el nivel), el 22 (los items de mision se pueden tirar) y el 23 (los consumibles S8, talismanes y sellos de Ascension, Blessing of Light y Scroll Master, se usan con clic derecho: antes el cliente los tiraba al piso). Editor OFF, sin data."
+            echo "el 21 (los puntos por repartir se pisaban con el nivel), el 22 (los items de mision se pueden tirar), el 23 (los consumibles S8, talismanes y sellos de Ascension, Blessing of Light y Scroll Master, se usan con clic derecho: antes el cliente los tiraba al piso), el 24 (los bufos S8 se dibujan con el icono S6 equivalente en vez de un recuadro negro) y el 25 (contador de tiempo bajo cada bufo, de Mundy). Editor OFF, sin data."
             echo
             echo "- Mac (arm64): MuMain-macos-native-arm64-release-editor-off-no-data-parchado.tar.gz, para actualizar-cliente-mac.sh"
             echo "- Windows (x64), jugadores: Mu-cliente-windows-parche9.zip (Main.exe, DLL y shaders; sin Data, fonts ni config.ini: se descomprime encima de la carpeta del juego)"

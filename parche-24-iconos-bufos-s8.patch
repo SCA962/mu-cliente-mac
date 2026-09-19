@@ -1,0 +1,55 @@
+diff --git a/src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp b/src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp
+--- a/src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp
++++ b/src/source/UI/NewUI/HUD/NewUIBuffWindow.cpp
+@@ -337,11 +337,37 @@
+     int iWidthIndex, iHeightIndex;
+     float u, v;
+ 
+-    if (eBuffType < 81) // eBuff_Berserker
++    // Los bufos de Season 8 (190-204) no tienen celda en ninguna lamina: las tres miden 200x224
++    // (10x8 celdas de 20x28: 1-80, 81-160 y 161-240), la tercera esta vacia de 170 en adelante y
++    // este codigo ademas nunca la carga, asi que salian como un recuadro negro. Se dibujan con el
++    // icono del bufo Season 6 equivalente. Solo cambia la imagen: el nombre, el tooltip y el tiempo
++    // siguen saliendo de BuffEffect_*.bmd por el indice real. (18-09-2026, prueba de Stefano)
++    int iIconType = eBuffType;
++    switch (eBuffType)
+     {
+-        iWidthIndex = (eBuffType - 1) % 10;
+-        iHeightIndex = (eBuffType - 1) / 10;
++    case EFFECT_TALISMAN_OF_ASCENSION1:        iIconType = eBuff_PcRoomSeal1; break;         // 29  Seal of Ascension
++    case EFFECT_TALISMAN_OF_ASCENSION2:        iIconType = eBuff_Seal1; break;               // 40  Seal of Ascension
++    case EFFECT_TALISMAN_OF_ASCENSION3:        iIconType = eBuff_AscensionSealMaster; break; // 101 Master Seal of Ascension
++    case EFFECT_SEAL_OF_ASCENSION3:            iIconType = eBuff_Seal1; break;
++    case EFFECT_MASTER_SEAL_OF_ASCENSION2:     iIconType = eBuff_AscensionSealMaster; break;
++    case EFFECT_BLESSING_OF_LIGHT:             iIconType = eBuff_PartyExpBonus; break;       // 112 Party EXP Bonus
++    case EFFECT_MASTER_SCROLL_OF_DEFENSE:      iIconType = eBuff_EliteScroll2; break;        // 45  Scroll of Defense
++    case EFFECT_MASTER_SCROLL_OF_MAGIC_DAMAGE: iIconType = eBuff_EliteScroll4; break;        // 47  Scroll of Wizardry
++    case EFFECT_MASTER_SCROLL_OF_LIFE:         iIconType = eBuff_EliteScroll5; break;        // 48  Scroll of Health
++    case EFFECT_MASTER_SCROLL_OF_MANA:         iIconType = eBuff_EliteScroll6; break;        // 49  Scroll of Mana
++    case EFFECT_MASTER_SCROLL_OF_DAMAGE:       iIconType = eBuff_EliteScroll3; break;        // 46  Scroll of Wrath
++    case EFFECT_MASTER_SCROLL_OF_HEALING:      iIconType = eBuff_Scroll_Healing; break;      // 121 Scroll of Healing
++    case EFFECT_MASTER_SCROLL_OF_BATTLE:       iIconType = eBuff_Scroll_Battle; break;       // 89  Scroll of Battle
++    case EFFECT_MASTER_SCROLL_OF_STRENGTH:     iIconType = eBuff_Scroll_Strengthen; break;   // 90  Scroll of Strength
++    case EFFECT_MASTER_SCROLL_OF_QUICK:        iIconType = eBuff_EliteScroll1; break;        // 44  Scroll of Quickness
++    default: break;
++    }
+ 
++    if (iIconType < 81) // eBuff_Berserker
++    {
++        iWidthIndex = (iIconType - 1) % 10;
++        iHeightIndex = (iIconType - 1) / 10;
++
+         u = iWidthIndex * width / 256.f;
+         v = iHeightIndex * height / 256.f;
+ 
+@@ -350,8 +376,8 @@
+     else
+     {
+         // eBuff_Santa
+-        iWidthIndex = (eBuffType - 81) % 10; // eBuff_Berserker
+-        iHeightIndex = (eBuffType - 81) / 10; // eBuff_Berserker
++        iWidthIndex = (iIconType - 81) % 10; // eBuff_Berserker
++        iHeightIndex = (iIconType - 81) / 10; // eBuff_Berserker
+ 
+         u = iWidthIndex * width / 256.f;
+         v = iHeightIndex * height / 256.f;

@@ -42,7 +42,9 @@ Además de los diez de arriba, la receta de `s8-pruebas` aplica doce parches má
 21. Los puntos por repartir de la ventana de personaje se pisaban con el nivel y los resets.
 22. Los ítems de misión se pueden tirar.
 23. Los consumibles Season 8 (talismanes y sellos de Ascension, Blessing of Light, Scroll Master) se usan con clic derecho; antes el cliente no los conocía y el clic derecho los tiraba al piso sin mandar nunca «usar».
+24. Los bufos Season 8 (190-204) se dibujan con el icono S6 equivalente; no tienen celda en ninguna lámina y salían como un recuadro negro.
+25. Contador de tiempo bajo cada bufo y reinicio del temporizador al re-lanzar (de Mundy, rama `mu-chile-v1.2.5`, commit `fc40705ebb`; solo sus 6 ficheros nuevos, los otros 10 eran nuestros parches 1-10).
 
 - `build-clientes.yml` (Mac + Windows, publica release): se lanza a mano. **La rama que se elige en «Run workflow» es la que se compila**: `main` sigue siendo la línea S6 (parches 1 a 10).
 - `build-mac-s8.yml` (solo Mac, sin release): **dispara con cada `push` a `s8-pruebas`** (macOS factura ×10). Si se sube algo que no hace falta compilar, poner `[skip ci]` en el mensaje del commit.
-- Las releases de esta línea llevan el tag `v1.2.5-s8-parche23-r<N>` y apuntan al commit compilado. La `v1.2.5-parche9-r5` del 17-09 es un binario S8 (1 a 20) con tag en `main`; su texto se corrigió el 18-09.
+- Las releases de esta línea llevan el tag `v1.2.5-s8-parche25-r<N>` y apuntan al commit compilado. La `v1.2.5-parche9-r5` del 17-09 es un binario S8 (1 a 20) con tag en `main`; su texto se corrigió el 18-09.
