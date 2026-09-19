@@ -50,6 +50,7 @@ namespace SEASON3B
         void BuffSort(std::list<eBuffState>& buffstate);
         void RenderBuffStatus(BUFF_RENDER renderstate);
         void RenderBuffIcon(eBuffState& eBuffType, float x, float y, float width, float height);
+        void RenderBuffTimer(eBuffState buff, float x, float y, float width, float height);
         void RenderBuffTooltip(eBuffClass& eBuffClassType, eBuffState& eBuffType, float x, float y);
         bool SetDisableRenderBuff(const eBuffState& _BuffState);
 

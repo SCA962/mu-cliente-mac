@@ -915,11 +915,15 @@ bool CNewUIMixInventory::InventoryProcess()
         const auto iCurInventory = g_MixRecipeMgr.GetMixInventoryEquipmentIndex();
 
         ITEM* pItemObj = pPickedItem->GetItem();
+        // The inventory window sits on a higher layer and consumes the left-button press while an
+        // item is picked and this window is open, so the press never reaches these branches.
+        // Accept the release as well, like the vault and the trade window do;
+        // SendRequestEquipmentItem() ignores a second request while one is pending.
         if (GetMixState() == MIX_READY && g_MixRecipeMgr.IsMixSource(pPickedItem->GetItem()) &&
             pPickedItem->GetOwnerInventory() == g_pMyInventory->GetInventoryCtrl())
         {
             m_pNewInventoryCtrl->SetSquareColorNormal(m_fInventoryColor[0], m_fInventoryColor[1], m_fInventoryColor[2]);
-            if (SEASON3B::IsPress(VK_LBUTTON))
+            if (SEASON3B::IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON))
             {
                 int iSourceIndex = pPickedItem->GetSourceLinealPos();
                 int iTargetIndex = pPickedItem->GetTargetLinealPos(m_pNewInventoryCtrl);
@@ -936,7 +940,7 @@ bool CNewUIMixInventory::InventoryProcess()
         else if (pPickedItem->GetOwnerInventory() == m_pNewInventoryCtrl)
         {
             m_pNewInventoryCtrl->SetSquareColorNormal(m_fInventoryColor[0], m_fInventoryColor[1], m_fInventoryColor[2]);
-            if (SEASON3B::IsPress(VK_LBUTTON))
+            if (SEASON3B::IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON))
             {
                 int iSourceIndex = pPickedItem->GetSourceLinealPos();
                 int iTargetIndex = pPickedItem->GetTargetLinealPos(m_pNewInventoryCtrl);
@@ -954,7 +958,7 @@ bool CNewUIMixInventory::InventoryProcess()
             pItemObj->ex_src_type == ITEM_EX_SRC_EQUIPMENT)
         {
             m_pNewInventoryCtrl->SetSquareColorNormal(m_fInventoryColor[0], m_fInventoryColor[1], m_fInventoryColor[2]);
-            if (SEASON3B::IsPress(VK_LBUTTON))
+            if (SEASON3B::IsPress(VK_LBUTTON) || SEASON3B::IsRelease(VK_LBUTTON))
             {
                 int iSourceIndex = pPickedItem->GetSourceLinealPos();
                 int iTargetIndex = pPickedItem->GetTargetLinealPos(m_pNewInventoryCtrl);

@@ -309,6 +309,7 @@ void SEASON3B::CNewUIBuffWindow::RenderBuffStatus(BUFF_RENDER renderstate)
         if (renderstate == BUFF_RENDER_ICON)
         {
             RenderBuffIcon(buff, x, y, BUFF_IMG_WIDTH, BUFF_IMG_HEIGHT);
+            RenderBuffTimer(buff, x, y, BUFF_IMG_WIDTH, BUFF_IMG_HEIGHT);
 #ifdef _DEBUG
             int iBuffReferenceCount = g_CharacterBuffCount(pHeroObject, buff);
             RenderNumber(x + 5, y + 5, iBuffReferenceCount, 1.f);
@@ -358,6 +359,31 @@ void SEASON3B::CNewUIBuffWindow::RenderBuffIcon(eBuffState& eBuffType, float x, 
 
         RenderBitmap(IMAGE_BUFF_STATUS2, x, y, width, height, u, v, width / 256.f, height / 256.f);
     }
+}
+
+void SEASON3B::CNewUIBuffWindow::RenderBuffTimer(eBuffState buff, float x, float y, float width, float height)
+{
+    DWORD remaining = g_BuffRemainingSeconds(buff);
+    if (remaining == 0)
+        return;
+
+    wchar_t text[16];
+    if (remaining >= 60)
+        mu_swprintf(text, L"%d:%02d", remaining / 60, remaining % 60);
+    else
+        mu_swprintf(text, L"%ds", remaining);
+
+    if (remaining <= 5)
+        g_pRenderText->SetTextColor(255, 60, 60, 220);
+    else if (remaining <= 15)
+        g_pRenderText->SetTextColor(255, 210, 40, 220);
+    else
+        g_pRenderText->SetTextColor(255, 255, 255, 200);
+
+    g_pRenderText->SetFont(g_hFont);
+    g_pRenderText->SetBgColor(0, 0, 0, 0);
+    g_pRenderText->RenderText(static_cast<int>(x), static_cast<int>(y + height + 2),
+        text, static_cast<int>(width), 0, RT3_SORT_CENTER);
 }
 
 void SEASON3B::CNewUIBuffWindow::RenderBuffTooltip(eBuffClass& eBuffClassType, eBuffState& eBuffType, float x, float y)

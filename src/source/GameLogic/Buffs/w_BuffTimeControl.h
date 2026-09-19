@@ -18,6 +18,7 @@ public:
     void GetBuffStringTime(DWORD type, std::wstring& timeText, bool issecond = true);
     const DWORD GetBuffTime(DWORD type);
     void GetStringTime(DWORD time, std::wstring& timeText, bool isSecond = true);
+    DWORD GetBuffRemainingSeconds(eBuffState bufftype);
 
 private:
     eBuffTimeType CheckBuffTimeType(eBuffState bufftype);

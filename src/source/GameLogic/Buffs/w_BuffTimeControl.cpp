@@ -100,7 +100,13 @@ void BuffTimeControl::RegisterBuffTime(eBuffState bufftype, DWORD curbufftime)
         return;
     }
 
-    if (IsBuffTime(bufftimetype)) return;
+    // Always reset: kill any existing timer so re-casts never get blocked by a
+    // stale or still-running entry.
+    if (IsBuffTime(bufftimetype))
+    {
+        Core::Time::FrameTimerScheduler::Instance().Kill(bufftimetype);
+        m_BuffTimeList.erase(bufftimetype);
+    }
 
     BuffTimeInfo  buffinfo;
     buffinfo.s_BuffType = bufftype;
@@ -115,7 +121,10 @@ void BuffTimeControl::RegisterBuffTime(eBuffState bufftype, DWORD curbufftime)
         [this, bufftimetype]
         {
             if (!CheckBuffTime(bufftimetype))
+            {
                 Core::Time::FrameTimerScheduler::Instance().Kill(bufftimetype);
+                m_BuffTimeList.erase(bufftimetype);
+            }
         });
 }
 
@@ -230,6 +239,21 @@ void BuffTimeControl::GetStringTime(DWORD time, std::wstring& timeText, bool isS
             timeText = buffer;
         }
     }
+}
+
+DWORD BuffTimeControl::GetBuffRemainingSeconds(eBuffState bufftype)
+{
+    for (auto& kv : m_BuffTimeList)
+    {
+        if (kv.second.s_BuffType == bufftype)
+        {
+            DWORD elapsed = GetTickCount() - kv.second.s_EventBuffTime;
+            if (kv.second.s_CurBuffTime > elapsed)
+                return (kv.second.s_CurBuffTime - elapsed) / 1000;
+            return 0;
+        }
+    }
+    return 0;
 }
 
 bool BuffTimeControl::CheckBuffTime(DWORD type)

@@ -3802,6 +3802,8 @@ void ReceiveAction(const BYTE* ReceiveBuffer, int Size)
     g_ConsoleDebug->Write(MCD_RECEIVE, L"0x18 [ReceiveAction(%d)]", Data->Angle);
 }
 
+void InsertBuffLogicalEffect(eBuffState buff, OBJECT* o, const int bufftime);
+
 void ReceiveSkillStatus(const BYTE* ReceiveBuffer)
 {
     auto Data = (LPPMSG_VIEWSKILLSTATE)ReceiveBuffer;
@@ -3818,8 +3820,15 @@ void ReceiveSkillStatus(const BYTE* ReceiveBuffer)
 
         if (g_isCharacterBuff(o, bufftype))
         {
-            if ((o->Type >= MODEL_CRYWOLF_ALTAR1 && o->Type <= MODEL_CRYWOLF_ALTAR5) || MODEL_SMITH ||
-                MODEL_NPC_SERBIS || MODEL_MERCHANT_MAN || MODEL_STORAGE || MODEL_NPC_BREEDER)
+            if (o == &Hero->Object)
+            {
+                // Buff re-applied while already active: reset the client-side timer display.
+                InsertBuffLogicalEffect(bufftype, o, 0);
+            }
+            else if ((o->Type >= MODEL_CRYWOLF_ALTAR1 && o->Type <= MODEL_CRYWOLF_ALTAR5) ||
+                     o->Type == MODEL_SMITH || o->Type == MODEL_NPC_SERBIS ||
+                     o->Type == MODEL_MERCHANT_MAN || o->Type == MODEL_STORAGE ||
+                     o->Type == MODEL_NPC_BREEDER)
             {
                 if (g_isCharacterBuff(o, eBuff_CrywolfHeroContracted))
                 {
@@ -15129,6 +15138,19 @@ void InsertBuffLogicalEffect(eBuffState buff, OBJECT* o, const int bufftime)
     {
         switch (buff)
         {
+        case eBuff_Attack:
+        case eBuff_Defense:
+        case eBuff_Life:
+        case eBuff_WizDefense:
+        case eBuff_AddCriticalDamage:
+        case eBuff_AddAG:
+        case eBuff_HelpNpc:
+        {
+            DWORD duration = (bufftime > 0) ? static_cast<DWORD>(bufftime) : 60u;
+            g_UnRegisterBuffTime(buff);
+            g_RegisterBuffTime(buff, duration);
+        }
+        break;
         case eBuff_Hellowin1:
         case eBuff_Hellowin2:
         case eBuff_Hellowin3:
@@ -15312,6 +15334,17 @@ void ClearBuffLogicalEffect(eBuffState buff, OBJECT* o)
     {
         switch (buff)
         {
+        case eBuff_Attack:
+        case eBuff_Defense:
+        case eBuff_Life:
+        case eBuff_WizDefense:
+        case eBuff_AddCriticalDamage:
+        case eBuff_AddAG:
+        case eBuff_HelpNpc:
+        {
+            g_UnRegisterBuffTime(buff);
+        }
+        break;
         case eBuff_Hellowin1:
         case eBuff_Hellowin2:
         case eBuff_Hellowin3:

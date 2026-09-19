@@ -131,10 +131,18 @@ namespace MUHelper
 				break;
 			}
 
+			// The wire format has 15 bytes per name. wcstombs() returns 15 when the
+			// name does not fit; previously the whole entry was dropped silently, so
+			// filters of 15+ characters vanished when saving. Keep the first 14
+			// characters instead (the pickup filter is a substring match anyway).
 			size_t n = wcstombs(netData.ExtraItems[iItemIndex], wsItem.c_str(), 15);
-			if (n == (size_t)-1 || n == 15)
+			if (n == (size_t)-1)
 			{
 				memset(netData.ExtraItems[iItemIndex], 0, 15);
+			}
+			else
+			{
+				netData.ExtraItems[iItemIndex][14] = '\0';
 			}
 			iItemIndex++;
 		}

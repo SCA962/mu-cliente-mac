@@ -168,12 +168,23 @@ static_assert(sizeof(FogUniform) == 48, "FogUniform must be 48 bytes (HLSL cbuff
 #define MU_SHADER_DIR ""
 #endif
     // Primary: cmake build-output path (works for local dev builds).
-    // Fallback: shaders/ next to the executable (works for CI artifacts and installs).
+    // Then: shaders/ in the runtime directory, which is the working directory set at
+    // startup (the executable's directory on every platform; on macOS that is
+    // Main.app/Contents/MacOS, where the CI archive puts the shaders).
+    // Fallback: shaders/ under SDL_GetBasePath(). Note that inside a macOS app bundle
+    // SDL_GetBasePath() returns Contents/Resources/, not the executable directory, so
+    // it must not be the only candidate (issue: "SDL_gpu Renderer Error" on macOS).
     std::string filename = std::string(name) + "." + stage + "." + ext;
     std::filesystem::path cmakePath = std::filesystem::path(MU_SHADER_DIR) / filename;
     if (!cmakePath.empty() && std::filesystem::exists(cmakePath))
     {
         return cmakePath.string();
+    }
+    std::error_code error;
+    const std::filesystem::path runtimePath = std::filesystem::current_path(error) / "shaders" / filename;
+    if (!error && std::filesystem::exists(runtimePath))
+    {
+        return runtimePath.string();
     }
     const char* basePath = SDL_GetBasePath();
     if (basePath != nullptr)

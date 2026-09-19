@@ -2045,6 +2045,12 @@ void GetSpecialOptionText(int Type, wchar_t* Text, WORD Option, BYTE Value, int 
         gSkillManager.GetSkillInformation(Option, 1, NULL, &iMana, NULL);
         mu_swprintf(Text, I18N::Game::BeastUppercutManaD, iMana);
         break;
+    case AT_SKILL_PHOENIX_SHOT:
+        // Phoenix Soul Star: without this case the skill line stayed empty and RenderTipTextList
+        // stops at the first empty line, hiding every option of the item.
+        gSkillManager.GetSkillInformation(Option, 1, NULL, &iMana, NULL);
+        mu_swprintf(Text, I18N::Game::PhoenixShotManaD, iMana);
+        break;
     }
 }
 

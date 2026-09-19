@@ -74,6 +74,9 @@ BuffStateValueControl& TheBuffStateValueControl();
 #define g_StringTime( time, timeText, issecond ) \
 	TheBuffTimeControl().GetStringTime( time, timeText, issecond )
 
+#define g_BuffRemainingSeconds( bufftype ) \
+	TheBuffTimeControl().GetBuffRemainingSeconds( bufftype )
+
 //TheBuffStateValueControl
 #define g_BuffStateValue( type ) \
 	TheBuffStateValueControl().GetValue( type )

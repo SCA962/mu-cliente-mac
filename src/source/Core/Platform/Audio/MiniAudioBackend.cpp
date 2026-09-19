@@ -534,6 +534,16 @@ void MiniAudioBackend::PlayMusic(const char* name, bool enforce)
         return;
     }
 
+    // If the same track already failed to open (e.g. Data/Music is missing), do not
+    // retry it on every frame: each attempt posts a job to miniaudio's resource
+    // manager thread and waits for it, and that hammering can end in a livelock that
+    // freezes the main thread (seen on macOS). A different track, or enforce=true,
+    // retries as usual.
+    if (!enforce && !m_failedMusicName.empty() && m_failedMusicName == normalizedName)
+    {
+        return;
+    }
+
     // Stop and release previous music stream
     if (m_musicLoaded)
     {
@@ -557,10 +567,13 @@ void MiniAudioBackend::PlayMusic(const char* name, bool enforce)
 
     if (result != MA_SUCCESS)
     {
-        mu::log::Get("audio")->error("AUDIO: MiniAudioBackend::PlayMusic -- failed to init stream '{}' ({})", name,
+        mu::log::Get("audio")->error("AUDIO: MiniAudioBackend::PlayMusic -- failed to init stream '{}' ({}); not retrying until another track is requested", name,
                                      static_cast<int>(result));
+        m_failedMusicName = normalizedName;
         return;
     }
+
+    m_failedMusicName.clear();
 
     ma_sound_set_looping(&m_musicSound, MA_TRUE);
     // Story 5.4.1: Apply stored BGM volume to new track before starting

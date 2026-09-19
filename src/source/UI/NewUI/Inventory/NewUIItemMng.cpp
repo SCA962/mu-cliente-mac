@@ -25,6 +25,11 @@ ItemCreationParams ParseItemData(std::span<const BYTE> itemData)
     auto flags = static_cast<ItemOptionFlags>(itemData[4]);
     params.WithLuck = flags & ItemOptionFlags::HasLuck;
     params.WithSkill = flags & ItemOptionFlags::HasSkill;
+    // The level 380 (Guardian) option was parsed nowhere, so ItemCreationParams::HasGuardianOption
+    // stayed false, ITEM::option_380 stayed 0 and the tooltip block in ZzzInventory.cpp never ran.
+    // The flag carries no payload byte (see CalcItemLength and the server side layout), so reading
+    // it here does not shift any of the offsets below.
+    params.HasGuardianOption = (flags & ItemOptionFlags::HasGuardian) != 0;
 
     int offset = 0;
     if (flags & ItemOptionFlags::HasOption)

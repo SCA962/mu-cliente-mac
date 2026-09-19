@@ -102,8 +102,8 @@ int CSocketItemMgr::GetSeedShpereSeedID(const ITEM* pItem)
         case 5:	// 29~33
             bySocketSeedID = 29 + iLevel;
             break;
-        case 6:	// 34~40
-            bySocketSeedID = 34 + iLevel;
+        case 6:	// 36~40 (SocketItem_*.bmd and the server put Earth at 36)
+            bySocketSeedID = 36 + iLevel;
             break;
         }
     }
@@ -307,8 +307,8 @@ int CSocketItemMgr::AttachToolTipForSeedSphereItem(const ITEM* pItem, int iTextN
         case 5:	// 29~33
             iSocketSeedID = 29 + iLevel;
             break;
-        case 6:	// 34~40
-            iSocketSeedID = 34 + iLevel;
+        case 6:	// 36~40 (SocketItem_*.bmd and the server put Earth at 36)
+            iSocketSeedID = 36 + iLevel;
             break;
         }
         pInfo = &m_SocketOptionInfo[SOT_SOCKET_ITEM_OPTIONS][iSocketSeedID];
@@ -354,8 +354,8 @@ int CSocketItemMgr::AttachToolTipForSeedSphereItem(const ITEM* pItem, int iTextN
         case 5:	// 29~33
             iSocketSeedID = 29 + iLevel;
             break;
-        case 6:	// 34~40
-            iSocketSeedID = 34 + iLevel;
+        case 6:	// 36~40 (SocketItem_*.bmd and the server put Earth at 36)
+            iSocketSeedID = 36 + iLevel;
             break;
         }
 
